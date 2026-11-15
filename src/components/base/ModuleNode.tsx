@@ -1,13 +1,23 @@
+
 import {
+  Activity,
   AlertTriangle,
   Battery,
+  Cpu,
   Droplet,
   Home,
+  Moon,
   Shield,
   Sprout,
+  Sun,
   Wind,
   Wrench,
+  Zap,
 } from 'lucide-react';
+import { useState } from 'react';
+import type { CSSProperties } from 'react';
+import type { LucideIcon } from 'lucide-react';
+
 import { useGameStore } from '../../store/gameStore';
 import type { ModuleType, OutpostModule } from '../../engine/types';
 
@@ -19,269 +29,281 @@ interface ModuleNodeProps {
   onRepair?: () => void;
 }
 
-/* ─── 3D Physical Visual per module type ─────────────────────────────── */
+type Scenario = 'mars' | 'moon';
+
+interface ModuleImageConfig {
+  src: string;
+  alt: string;
+  fallback: LucideIcon;
+  label: string;
+}
+
+interface PhysicalVisualProps {
+  type: ModuleType;
+  offline: boolean;
+  critical: boolean;
+  scenario: Scenario;
+}
+
+const moduleIcons: Record<ModuleType, LucideIcon> = {
+  solar_panel: Sun,
+  reactor: Zap,
+  battery: Battery,
+  o2_generator: Wind,
+  water_reclaimer: Droplet,
+  greenhouse: Sprout,
+  regolith_shield: Shield,
+  storm_shelter: Shield,
+  habitat: Home,
+};
+
+/**
+ * Individual image assets for each deployable module.
+ *
+ * These use publicly accessible Unsplash CDN images.
+ * No API key or runtime API request is required.
+ *
+ * For production deployments, download the selected images
+ * into /public/images/modules and update these paths to local assets.
+ */
+const moduleImages: Record<ModuleType, ModuleImageConfig> = {
+  solar_panel: {
+    src: 'https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=900&q=85',
+    alt: 'Solar panel array',
+    fallback: Sun,
+    label: 'SOLAR ARRAY',
+  },
+  reactor: {
+    src: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=900&q=85',
+    alt: 'Industrial power generation equipment',
+    fallback: Zap,
+    label: 'KILOPOWER REACTOR',
+  },
+  battery: {
+    src: 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&w=900&q=85',
+    alt: 'Energy storage battery equipment',
+    fallback: Battery,
+    label: 'BATTERY BANK',
+  },
+  o2_generator: {
+    src: 'https://images.unsplash.com/photo-1581092921461-eab62e97a780?auto=format&fit=crop&w=900&q=85',
+    alt: 'Industrial oxygen generation equipment',
+    fallback: Wind,
+    label: 'OXYGEN GENERATOR',
+  },
+  water_reclaimer: {
+    src: 'https://images.unsplash.com/photo-1530053969600-caed2596d242?auto=format&fit=crop&w=900&q=85',
+    alt: 'Water purification and filtration equipment',
+    fallback: Droplet,
+    label: 'WATER RECLAIMER',
+  },
+  greenhouse: {
+    src: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=85',
+    alt: 'Greenhouse plants and growing environment',
+    fallback: Sprout,
+    label: 'GREENHOUSE',
+  },
+  regolith_shield: {
+    src: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=900&q=85',
+    alt: 'Rocky planetary surface terrain',
+    fallback: Shield,
+    label: 'REGOLITH SHIELD',
+  },
+  storm_shelter: {
+    src: 'https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=85',
+    alt: 'Heavy-duty architectural shelter structure',
+    fallback: Shield,
+    label: 'STORM SHELTER',
+  },
+  habitat: {
+    src: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=900&q=85',
+    alt: 'Earth viewed from space',
+    fallback: Home,
+    label: 'CREW HABITAT',
+  },
+};
+
+const environmentStyles = {
+  mars: {
+    glow: 'rgba(251,146,60,0.18)',
+    accent: '#fb923c',
+    surface: 'MARS SURFACE',
+    border: 'border-orange-700/50',
+  },
+  moon: {
+    glow: 'rgba(148,197,255,0.16)',
+    accent: '#7dd3fc',
+    surface: 'LUNAR SURFACE',
+    border: 'border-slate-500/60',
+  },
+} satisfies Record<
+  Scenario,
+  {
+    glow: string;
+    accent: string;
+    surface: string;
+    border: string;
+  }
+>;
+
 function ModulePhysicalVisual({
   type,
   offline,
   critical,
-}: {
-  type: ModuleType;
-  offline: boolean;
-  critical: boolean;
-}) {
-  switch (type) {
-    /* ── Solar Array ── */
-    case 'solar_panel':
-      return (
-        <div className="relative flex h-24 w-full items-center justify-center">
-          {/* Central actuator mast */}
-          <div className="absolute bottom-1 h-9 w-4 rounded-sm bg-gradient-to-t from-zinc-700 to-zinc-400 border border-zinc-500 shadow-md flex items-center justify-center">
-            <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-          </div>
-          {/* PV wings */}
-          <div className="relative flex w-36 items-center justify-between gap-1 -rotate-3 hover:rotate-0 transition-transform duration-500">
-            {[false, true].map((flip) => (
-              <div
-                key={String(flip)}
-                className={`relative h-14 w-16 overflow-hidden rounded-sm border border-cyan-400/50
-                  bg-gradient-to-${flip ? 'bl' : 'br'} from-indigo-950 via-slate-900 to-blue-950
-                  p-1 shadow-lg`}
-              >
-                <div className="grid h-full w-full grid-cols-3 grid-rows-3 gap-0.5 opacity-80">
-                  {Array.from({ length: 9 }).map((_, i) => (
-                    <div key={i} className="border border-cyan-300/30 bg-blue-500/20" />
-                  ))}
-                </div>
-                <div
-                  className={`absolute inset-0 bg-gradient-to-t from-transparent via-cyan-400/10 to-transparent
-                    transform ${flip ? 'skew-x-12' : '-skew-x-12'} pointer-events-none`}
-                />
-              </div>
-            ))}
-            <div className="absolute h-2 w-4 rounded bg-amber-500 shadow-sm" />
-          </div>
-        </div>
-      );
+  scenario,
+}: PhysicalVisualProps) {
+  const config = moduleImages[type];
+  const environment = environmentStyles[scenario];
+  const [imageFailed, setImageFailed] = useState(false);
 
-    /* ── Kilopower Reactor ── */
-    case 'reactor':
-      return (
-        <div className="relative flex h-24 w-full flex-col items-center justify-end pb-1">
-          <div className="relative flex h-14 w-16 items-center justify-center">
-            {/* Radiator fins */}
-            <div className="absolute inset-x-0 h-10 rounded border border-zinc-600 bg-gradient-to-b from-zinc-700 to-zinc-900 shadow-inner flex justify-around px-1 py-0.5">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="w-1 bg-zinc-500/80 rounded" />
-              ))}
-            </div>
-            {/* Fission core */}
-            <div className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 border-cyan-400/80 bg-zinc-950 shadow-[0_0_16px_rgba(6,182,212,0.85)]">
-              <div
-                className={`h-4 w-4 rounded-full ${
-                  offline
-                    ? 'bg-red-500 animate-ping'
-                    : 'bg-gradient-to-tr from-cyan-400 to-teal-200 animate-pulse'
-                }`}
-              />
-            </div>
-          </div>
-          {/* Blast-shield pedestal */}
-          <div className="h-5 w-24 rounded-t-sm border border-zinc-600 bg-gradient-to-t from-zinc-900 to-zinc-800 shadow-md flex items-center justify-between px-2">
-            <span className="h-1.5 w-3 rounded bg-amber-500/90" />
-            <span className="text-[7px] font-black uppercase text-zinc-400 tracking-wider">KILOPOWER</span>
-            <span className="h-1.5 w-3 rounded bg-amber-500/90" />
-          </div>
-        </div>
-      );
+  const Icon = config.fallback;
 
-    /* ── Battery Bank ── */
-    case 'battery':
-      return (
-        <div className="relative flex h-24 w-full items-center justify-center gap-2">
-          {[0, 1].map((bank) => (
-            <div
-              key={bank}
-              className="relative w-14 rounded-md border border-zinc-700 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-1.5 shadow-md flex flex-col justify-between"
-              style={{ height: '4.5rem' }}
-            >
-              <div className="flex items-center justify-between">
-                <Battery className="h-3 w-3 text-cyan-400" />
-                <span className="text-[7px] font-mono text-zinc-400">B-{bank + 1}</span>
-              </div>
-              <div className="space-y-0.5 py-1">
-                <div className="h-1 w-full rounded-sm bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.7)]" />
-                <div className="h-1 w-full rounded-sm bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.7)]" />
-                <div className="h-1 w-full rounded-sm bg-cyan-500" />
-                <div className={`h-1 w-full rounded-sm ${critical ? 'bg-red-500' : 'bg-zinc-700'}`} />
-              </div>
-              <div className="h-1 rounded bg-zinc-700" />
-            </div>
-          ))}
-          {/* Copper bus-bar */}
-          <div className="absolute h-1.5 w-10 rounded bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 shadow-sm" />
-        </div>
-      );
+  return (
+    <div
+      className="relative flex h-40 w-full items-center justify-center overflow-hidden rounded-lg"
+      data-module-visual={type}
+      data-image-fallback={imageFailed}
+      aria-label={config.alt}
+    >
+      {/* Environment lighting */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: `radial-gradient(ellipse at 50% 20%, ${environment.glow}, transparent 72%)`,
+        }}
+      />
 
-    /* ── O₂ Generator (MOXIE) ── */
-    case 'o2_generator':
-      return (
-        <div className="relative flex h-24 w-full items-end justify-center pb-1 gap-2">
-          <div className="relative flex items-center justify-center">
-            {[{ label: 'O₂', right: false }, { label: 'MOXIE', right: true }].map(({ label }) => (
-              <div
-                key={label}
-                className="relative h-14 w-14 rounded-full border-2 border-zinc-400
-                  bg-gradient-to-b from-zinc-100 via-zinc-300 to-zinc-600
-                  p-1 shadow-lg flex flex-col items-center justify-center"
-              >
-                <div className="absolute top-1.5 h-1.5 w-6 rounded-full bg-orange-500/90 text-center font-black text-[6px] text-white">
-                  {label}
-                </div>
-                <div className="h-4 w-4 rounded-full border border-zinc-400 bg-zinc-800/80 flex items-center justify-center">
-                  {label === 'O₂'
-                    ? <Wind className="h-2.5 w-2.5 text-cyan-300" />
-                    : <div className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-                  }
-                </div>
-                <div className="absolute -bottom-1 h-3 w-8 rounded bg-zinc-800 border border-zinc-600" />
-              </div>
-            ))}
-            {/* Cryo manifold */}
-            <div className="h-2 w-5 bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.8)] rounded-full -mx-1 z-10" />
-          </div>
-        </div>
-      );
+      {/* Ground shadow */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-2 left-1/2 h-5 w-32 -translate-x-1/2 rounded-full"
+        style={{
+          background:
+            'radial-gradient(ellipse, rgba(0,0,0,0.9), transparent 72%)',
+          filter: 'blur(5px)',
+        }}
+      />
 
-    /* ── Water Recycler ── */
-    case 'water_reclaimer':
-      return (
-        <div className="relative flex h-24 w-full items-end justify-center pb-1 gap-2">
-          <div className="relative h-16 w-14 rounded-md border-2 border-blue-400/60
-            bg-gradient-to-b from-blue-950/40 via-cyan-950/60 to-blue-900/80
-            p-1 shadow-[0_0_15px_rgba(59,130,246,0.3)] flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[7px] text-cyan-300">
-              <span>H₂O</span><Droplet className="h-2.5 w-2.5 text-cyan-400" />
-            </div>
-            <div className="h-8 w-full rounded bg-gradient-to-t from-blue-600 to-cyan-400/70 shadow-inner opacity-80" />
-            <div className="h-1 rounded bg-zinc-700" />
-          </div>
-          <div className="h-16 w-10 rounded border border-zinc-600 bg-zinc-800 p-1 flex flex-col justify-around">
-            {(['#52525b', '#22d3ee', '#52525b', '#60a5fa'] as const).map((hex, i) => (
-              <div
-                key={i}
-                style={{ backgroundColor: hex, boxShadow: i % 2 === 1 ? '0 0 5px rgba(6,182,212,0.8)' : 'none' }}
-                className="h-1.5 w-full rounded-sm"
-              />
-            ))}
-          </div>
-        </div>
-      );
-
-    /* ── Greenhouse ── */
-    case 'greenhouse':
-      return (
-        <div className="relative flex h-24 w-full items-end justify-center pb-1">
+      {/* Individual module image */}
+      {!imageFailed ? (
+        <img
+          src={config.src}
+          alt={config.alt}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setImageFailed(true)}
+          className={[
+            'relative z-10 h-full w-full rounded-lg object-cover',
+            'object-center transition-[filter] duration-300',
+            offline ? 'grayscale opacity-50' : 'opacity-95',
+          ].join(' ')}
+        />
+      ) : (
+        <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-3 rounded-lg border border-zinc-700/70 bg-gradient-to-br from-zinc-800 via-zinc-950 to-black">
           <div
-            className="relative h-20 w-24 overflow-hidden rounded-t-full border-2 border-emerald-400/60
-              bg-gradient-to-b from-emerald-950/60 via-zinc-950/80 to-zinc-900
-              p-2 shadow-[0_0_20px_rgba(16,185,129,0.35)] flex flex-col items-center justify-between"
+            className="flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-950/40"
+            style={{
+              boxShadow: `0 0 30px ${environment.glow}`,
+            }}
           >
-            <div className="absolute inset-0 border-t border-emerald-300/40 rounded-t-full pointer-events-none" />
-            <div className="h-1 w-12 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.9)]" />
-            <div className="flex items-center gap-1 text-emerald-400">
-              <Sprout className="h-4 w-4 drop-shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-              <Sprout className="h-5 w-5 drop-shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-              <Sprout className="h-4 w-4 drop-shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-            </div>
-            <div className="h-2 w-full rounded bg-zinc-800 border-t border-zinc-700" />
+            <Icon
+              className={`h-9 w-9 ${
+                offline ? 'text-red-400' : 'text-cyan-300'
+              }`}
+              strokeWidth={1.5}
+            />
           </div>
-        </div>
-      );
 
-    /* ── Regolith Shield ── */
-    case 'regolith_shield':
-      return (
-        <div className="relative flex h-24 w-full items-end justify-center pb-1">
-          <div
-            className="relative h-16 w-28 rounded-t-lg border-2 border-zinc-600
-              bg-gradient-to-t from-zinc-900 via-stone-800 to-zinc-700
-              p-2 shadow-2xl flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between">
-              <Shield className="h-4 w-4 text-stone-300" />
-              <span className="text-[7px] font-mono uppercase tracking-widest text-stone-400">ARMOR-65</span>
-            </div>
-            <div className="grid grid-cols-4 gap-1 py-1">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-3 rounded-sm border border-stone-500 bg-stone-900" />
-              ))}
-            </div>
-            <div className="h-1.5 w-full rounded bg-amber-600/80" />
-          </div>
-        </div>
-      );
+          <span className="text-[9px] font-black tracking-[0.2em] text-zinc-400">
+            {config.label}
+          </span>
 
-    /* ── Storm Shelter ── */
-    case 'storm_shelter':
-      return (
-        <div className="relative flex h-24 w-full items-end justify-center pb-1">
-          <div
-            className="relative w-28 rounded-t-xl border-2 border-amber-600/70
-              bg-gradient-to-t from-zinc-950 via-zinc-900 to-zinc-800
-              p-2 shadow-[0_0_15px_rgba(245,158,11,0.25)] flex flex-col items-center justify-between"
-            style={{ height: '4.5rem' }}
-          >
-            {/* Warning mast */}
-            <div className="absolute -top-3 h-4 w-1 bg-zinc-500 flex items-start justify-center">
-              <div className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-ping" />
-            </div>
-            <div className="flex w-full items-center justify-between text-[7px] font-black text-amber-400 tracking-wider">
-              <span>SHELTER</span><Shield className="h-3 w-3" />
-            </div>
-            {/* Vault door */}
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-zinc-500 bg-zinc-950 shadow-inner">
-              <div className="h-4 w-4 rounded-full border border-amber-500 bg-zinc-800 flex items-center justify-center">
-                <div className="h-1 w-1 rounded-full bg-amber-400" />
-              </div>
-            </div>
-            <div className="h-1.5 w-full rounded bg-zinc-700" />
-          </div>
+          <span className="text-[8px] tracking-wider text-zinc-600">
+            VISUAL ASSET UNAVAILABLE
+          </span>
         </div>
-      );
+      )}
 
-    /* ── Habitat ── */
-    case 'habitat':
-    default:
-      return (
-        <div className="relative flex h-24 w-full items-end justify-center pb-1">
-          <div
-            className="relative w-28 rounded-t-2xl border-2 border-cyan-400/40
-              bg-gradient-to-b from-zinc-200 via-zinc-400 to-zinc-800
-              p-2 shadow-xl flex flex-col items-center justify-between"
-            style={{ height: '4.5rem' }}
-          >
-            {/* Cupola */}
-            <div className="flex h-5 w-10 items-center justify-center rounded-full border border-zinc-600 bg-gradient-to-tr from-amber-400 to-yellow-200 shadow-[0_0_10px_rgba(251,191,36,0.6)]">
-              <Home className="h-3 w-3 text-zinc-950" />
-            </div>
-            <div className="flex w-full items-center justify-between px-2 text-[7px] font-mono text-zinc-900 font-bold">
-              <span>HAB-01</span>
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            </div>
-            <div className="h-2 w-full rounded bg-zinc-900 border border-zinc-700" />
+      {/* Image contrast overlay */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-10 rounded-lg"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(0,0,0,0.05) 0%, transparent 45%, rgba(0,0,0,0.65) 100%)',
+        }}
+      />
+
+      {/* Module identification */}
+      <div className="absolute bottom-2 left-2 z-20 flex items-center gap-1.5 rounded border border-white/10 bg-black/65 px-2 py-1 backdrop-blur-sm">
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${
+            offline
+              ? 'bg-red-500 shadow-[0_0_8px_#ef4444]'
+              : critical
+                ? 'bg-amber-400 shadow-[0_0_8px_#fbbf24]'
+                : 'bg-emerald-400 shadow-[0_0_8px_#34d399]'
+          }`}
+        />
+        <span className="text-[8px] font-bold tracking-widest text-white/90">
+          {offline ? 'OFFLINE' : critical ? 'SYSTEM ALERT' : 'ONLINE'}
+        </span>
+      </div>
+
+      {/* Environment indicator */}
+      <div className="absolute right-2 top-2 z-20 rounded border border-white/10 bg-black/60 px-1.5 py-1 text-[7px] font-bold tracking-widest text-white/80 backdrop-blur-sm">
+        {scenario === 'mars' ? 'MARS' : 'LUNAR'}
+      </div>
+
+      {/* Offline overlay */}
+      {offline && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-red-950/15">
+          <div className="rounded border border-red-500/50 bg-red-950/90 px-3 py-1.5 text-[9px] font-black tracking-[0.2em] text-red-200">
+            MODULE OFFLINE
           </div>
         </div>
-      );
-  }
+      )}
+    </div>
+  );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   MODULE NODE
-   Wraps the physical visual in a billboarded, animated card.
-   .stand-upright   → counter-rotates exactly -60deg relative to the floor
-   .module-drop     → deployed bounce-in animation
-   Hover handled by .stand-upright:hover in CSS (spring scale + lift)
-═══════════════════════════════════════════════════════════════════════ */
+function ModuleStatus({
+  offline,
+  critical,
+  offlineUntilDay,
+}: {
+  offline: boolean;
+  critical: boolean;
+  offlineUntilDay?: number;
+}) {
+  if (offline) {
+    return (
+      <span className="flex items-center gap-1.5 font-semibold tracking-wide text-red-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_7px_#ef4444]" />
+        OFFLINE · D{offlineUntilDay ?? 0}
+      </span>
+    );
+  }
+
+  if (critical) {
+    return (
+      <span className="flex items-center gap-1.5 font-semibold tracking-wide text-amber-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_7px_#fbbf24]" />
+        SYSTEM ALERT
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1.5 font-semibold tracking-wide text-emerald-400">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_7px_#34d399]" />
+      OPERATIONAL
+    </span>
+  );
+}
+
 export default function ModuleNode({
   module,
   day,
@@ -290,122 +312,293 @@ export default function ModuleNode({
   onRepair,
 }: ModuleNodeProps) {
   const offline = (module.offlineUntilDay ?? 0) > day;
+
   const oxygen = useGameStore((state) => state.resources.oxygen);
   const power = useGameStore((state) => state.resources.power);
   const activeEvents = useGameStore((state) => state.activeEvents);
+  const scenario = useGameStore((state) => state.selectedScenario);
 
   const dustStormActive = activeEvents.some(
-    (e) => e.type === 'dust-storm' && (e.active || e.warned),
+    (event) =>
+      event.type === 'dust-storm' && (event.active || event.warned),
   );
+
+  const lunarNightActive = activeEvents.some(
+    (event) =>
+      event.type === 'lunar-night' && (event.active || event.warned),
+  );
+
   const isBaseFailure = oxygen <= 0 || power <= 0;
+  const isMars = scenario === 'mars';
+
+  const Icon = moduleIcons[module.moduleType];
+  const imageConfig = moduleImages[module.moduleType];
+
+  const environmentAccent = offline
+    ? 'border-red-600/70'
+    : environmentStyles[scenario].border;
+
+  const cardStyle: CSSProperties = {
+    boxShadow: offline
+      ? '0 18px 25px -8px rgba(0,0,0,.95), 0 0 22px rgba(239,68,68,.18), inset 0 2px 2px rgba(255,255,255,.13)'
+      : selected
+        ? '0 18px 25px -8px rgba(0,0,0,.95), 0 0 25px rgba(6,182,212,.3), inset 0 2px 2px rgba(255,255,255,.2)'
+        : '0 18px 25px -8px rgba(0,0,0,.95), 0 8px 12px rgba(0,0,0,.55), inset 0 2px 2px rgba(255,255,255,.17)',
+  };
 
   return (
-    /* Outer non-transformed wrapper keeps the grid layout correct */
-    <div className="relative flex flex-col items-center w-full">
+    <div
+      className="group relative flex w-full flex-col items-center"
+      data-module-node={module.id}
+    >
+      <style>{`
+        @keyframes module-node-drop {
+          0% {
+            opacity: 0;
+            transform: translateY(-24px);
+          }
+          70% {
+            opacity: 1;
+            transform: translateY(3px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
 
-      {/* ── Ground-plane anchor shadow ──────────────────────────────────
-       * Rendered in the floor plane (before billboarding) so it stays
-       * flat on the regolith surface directly beneath the module.
-       * -----------------------------------------------------------------*/}
+        @keyframes module-node-impact {
+          0% {
+            opacity: .75;
+            transform: translateX(-50%) scale(.35);
+          }
+          100% {
+            opacity: 0;
+            transform: translateX(-50%) scale(1.5);
+          }
+        }
+
+        @keyframes module-node-beacon {
+          0%, 100% {
+            opacity: .45;
+          }
+          50% {
+            opacity: 1;
+          }
+        }
+
+        .module-node-enter {
+          animation: module-node-drop .55s cubic-bezier(.2,.75,.25,1) both;
+        }
+
+        .module-node-impact-ring {
+          animation: module-node-impact .8s ease-out both;
+        }
+
+        .module-node-beacon {
+          animation: module-node-beacon 2s ease-in-out infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .module-node-enter,
+          .module-node-impact-ring,
+          .module-node-beacon {
+            animation: none !important;
+          }
+
+          .module-node-card,
+          .module-node-card * {
+            transition-duration: 0.01ms !important;
+            animation-duration: 0.01ms !important;
+          }
+        }
+      `}</style>
+
+      {/* Ground contact shadow */}
       <div
         aria-hidden="true"
-        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-36 h-5 pointer-events-none"
+        className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full transition-transform duration-300 group-hover:scale-110"
         style={{
+          width: '180px',
+          height: '30px',
           background:
-            'radial-gradient(ellipse at center, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.3) 45%, transparent 72%)',
-          filter: 'blur(4px)',
-          borderRadius: '50%',
+            'radial-gradient(ellipse at center, rgba(0,0,0,.95) 0%, rgba(0,0,0,.55) 45%, transparent 75%)',
+          filter: 'blur(7px)',
         }}
       />
 
-      {/* ── Billboarded module card ──────────────────────────────────────
-       * .stand-upright  → rotateX(-60deg) from bottom-centre origin
-       * .module-drop    → bounce-in keyframe (runs once on mount)
-       * -------------------------------------------------------------------*/}
+      {/* Environmental ground illumination */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 left-1/2 h-16 w-40 -translate-x-1/2 rounded-full blur-xl"
+        style={{
+          background: offline
+            ? 'rgba(239,68,68,.13)'
+            : environmentStyles[scenario].glow,
+        }}
+      />
+
+      {/* Module card */}
       <article
         className={[
-          'stand-upright module-drop',
-          'relative w-44 sm:w-48 rounded-xl border p-2.5 shadow-2xl',
+          'module-node-enter module-node-card relative w-44 sm:w-48',
+          'overflow-visible rounded-xl border p-2.5',
+          'transition-[border-color,box-shadow,filter] duration-300 ease-out',
+          'hover:-translate-y-1 hover:brightness-110',
+          environmentAccent,
           offline
-            ? 'border-red-600/90 bg-red-950/80 shadow-[0_0_28px_rgba(239,68,68,0.45)]'
+            ? 'bg-gradient-to-br from-red-950 via-zinc-950 to-black'
             : selected
-              ? 'border-cyan-400 bg-zinc-900/95 ring-2 ring-cyan-400/60 shadow-[0_0_32px_rgba(6,182,212,0.5)]'
-              : 'border-zinc-700/80 bg-zinc-950/85 hover:border-cyan-500/70 hover:bg-zinc-900/90',
-          isBaseFailure ? 'emergency-strobe' : '',
+              ? 'border-cyan-400 bg-gradient-to-br from-zinc-800 via-zinc-950 to-black ring-2 ring-cyan-400/50'
+              : 'bg-gradient-to-br from-zinc-800 via-zinc-950 to-black hover:border-cyan-500/70',
+          isBaseFailure && !offline ? 'emergency-strobe' : '',
         ].join(' ')}
+        data-scenario={scenario}
+        data-module-type={module.moduleType}
+        data-module-id={module.id}
+        data-offline={offline}
+        data-selected={selected}
+        style={cardStyle}
       >
-        {/* Dust storm badge */}
-        {dustStormActive && (
-          <div className="absolute -top-2.5 right-2 z-20 flex items-center gap-1 rounded bg-amber-900/90 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-200 border border-amber-500 shadow-md animate-pulse">
+        {/* Deployment impact effect */}
+        <div
+          aria-hidden="true"
+          className="module-node-impact-ring pointer-events-none absolute -bottom-1 left-1/2 z-0 h-16 w-36 rounded-full border border-cyan-300/50"
+        />
+
+        {/* Metallic reflection */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 rounded-xl"
+          style={{
+            background:
+              'linear-gradient(125deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.02) 20%, transparent 48%, rgba(0,0,0,.3) 100%)',
+          }}
+        />
+
+        {/* Planetary event indicators */}
+        {isMars && dustStormActive && (
+          <div className="absolute -top-2.5 right-2 z-30 flex items-center gap-1 rounded border border-amber-500 bg-amber-950 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-200 shadow-lg">
             <AlertTriangle className="h-2.5 w-2.5 text-amber-400" />
-            STORM
+            DUST STORM
           </div>
         )}
 
-        {/* Selection corner brackets */}
+        {scenario === 'moon' && lunarNightActive && (
+          <div className="absolute -top-2.5 right-2 z-30 flex items-center gap-1 rounded border border-sky-400/80 bg-slate-950 px-1.5 py-0.5 text-[8px] font-black uppercase text-sky-200 shadow-lg">
+            <Moon className="h-2.5 w-2.5 text-sky-300" />
+            LUNAR NIGHT
+          </div>
+        )}
+
+        {/* Critical systems warning */}
+        {isBaseFailure && !offline && (
+          <div className="absolute -top-2.5 left-2 z-30 flex items-center gap-1 rounded border border-red-600/70 bg-red-950 px-1.5 py-0.5 text-[8px] font-black uppercase text-red-200">
+            <AlertTriangle className="h-2.5 w-2.5" />
+            CRITICAL
+          </div>
+        )}
+
+        {/* Selection corners */}
         {selected && (
           <>
-            <span className="absolute -top-1 -left-1 h-2 w-2 border-t-2 border-l-2 border-cyan-400" />
-            <span className="absolute -top-1 -right-1 h-2 w-2 border-t-2 border-r-2 border-cyan-400" />
-            <span className="absolute -bottom-1 -left-1 h-2 w-2 border-b-2 border-l-2 border-cyan-400" />
-            <span className="absolute -bottom-1 -right-1 h-2 w-2 border-b-2 border-r-2 border-cyan-400" />
+            <span className="absolute -left-1 -top-1 z-30 h-3 w-3 border-l-2 border-t-2 border-cyan-400" />
+            <span className="absolute -right-1 -top-1 z-30 h-3 w-3 border-r-2 border-t-2 border-cyan-400" />
+            <span className="absolute -bottom-1 -left-1 z-30 h-3 w-3 border-b-2 border-l-2 border-cyan-400" />
+            <span className="absolute -bottom-1 -right-1 z-30 h-3 w-3 border-b-2 border-r-2 border-cyan-400" />
           </>
         )}
 
+        {/* Main module selection */}
         <button
           type="button"
           onClick={onSelect}
           aria-pressed={selected}
           aria-label={`${module.name}, ${offline ? 'offline' : 'online'}, power priority ${module.powerPriority}`}
-          className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          className="relative z-10 block w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-1 text-[9px]">
-            <span className="font-hud font-bold tracking-wider text-cyan-300">
+          {/* Module header */}
+          <div className="flex items-center justify-between border-b border-zinc-700/80 pb-1.5 text-[9px]">
+            <span className="flex items-center gap-1.5 font-hud font-bold tracking-wider text-cyan-300">
+              <Cpu className="h-3 w-3" />
               PRI {module.powerPriority}
             </span>
-            <span className="font-hud text-zinc-500">D{module.deployedDay ?? 0}</span>
+
+            <span className="font-hud text-zinc-400">
+              DEPLOYED D{module.deployedDay ?? 0}
+            </span>
           </div>
 
-          {/* Physical Structure */}
-          <div className="my-1.5 flex items-center justify-center">
+          {/* Individual module image */}
+          <div
+            className="relative my-2 overflow-hidden rounded-lg border border-zinc-700/70 bg-zinc-950"
+            style={{
+              boxShadow: 'inset 0 2px 8px rgba(0,0,0,.7)',
+            }}
+          >
             <ModulePhysicalVisual
               type={module.moduleType}
               offline={offline}
               critical={isBaseFailure}
+              scenario={scenario}
             />
           </div>
 
-          {/* Footer */}
-          <div className="mt-1">
-            <p className="truncate text-xs font-black uppercase tracking-wider text-zinc-100">
-              {module.name}
-            </p>
-            <div className="mt-0.5 flex items-center justify-between text-[9px]">
-              <span
-                className={`font-semibold ${
-                  offline ? 'text-red-400 text-glow-red animate-pulse' : 'text-emerald-400'
-                }`}
-              >
-                {offline ? `OFFLINE (D${module.offlineUntilDay})` : 'OPERATIONAL'}
+          {/* Module identity */}
+          <div className="relative border-t border-zinc-700/70 pt-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-zinc-700 bg-zinc-900/80">
+                <Icon className="h-4 w-4 text-cyan-400" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-black uppercase tracking-wider text-zinc-100">
+                  {module.name}
+                </p>
+                <p className="mt-0.5 truncate text-[8px] font-hud tracking-wider text-zinc-500">
+                  {imageConfig.label}
+                </p>
+              </div>
+            </div>
+
+            {/* Module status and mass */}
+            <div className="mt-2 flex items-center justify-between gap-2 text-[9px]">
+              <ModuleStatus
+                offline={offline}
+                critical={isBaseFailure}
+                offlineUntilDay={module.offlineUntilDay}
+              />
+
+              <span className="shrink-0 font-hud tabular-nums text-zinc-400">
+                {module.mass} kg
               </span>
-              <span className="font-hud text-zinc-500">{module.mass} kg</span>
             </div>
           </div>
         </button>
 
-        {/* Repair CTA */}
+        {/* Repair action */}
         {offline && onRepair && (
-          <div className="mt-2 pt-1 border-t border-red-900/50">
+          <div className="relative z-20 mt-2 border-t border-red-900/60 pt-2">
             <button
               type="button"
               onClick={onRepair}
-              className="inline-flex min-h-8 w-full items-center justify-center gap-1.5 rounded border border-red-600 bg-red-950/90 px-2 text-[9px] font-black uppercase tracking-widest text-red-100 hover:bg-red-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 shadow-lg"
+              className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded border border-red-600 bg-gradient-to-b from-red-900 to-red-950 px-2 text-[9px] font-black uppercase tracking-widest text-red-100 shadow-[0_4px_8px_rgba(0,0,0,.7)] transition-colors duration-200 hover:border-red-400 hover:from-red-700 hover:to-red-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
             >
-              <Wrench className="h-3 w-3" /> Repair
+              <Wrench className="h-3 w-3" />
+              Repair Module
             </button>
           </div>
         )}
+
+        {/* Operational telemetry */}
+        <div className="mt-2 flex items-center justify-between border-t border-zinc-800/70 pt-1.5 text-[8px] font-hud uppercase tracking-wider text-zinc-600">
+          <span>{environmentStyles[scenario].surface}</span>
+
+          <span className="flex items-center gap-1">
+            <Activity className="h-2.5 w-2.5" />
+            {offline ? 'SYSTEM DOWN' : 'LINK ACTIVE'}
+          </span>
+        </div>
       </article>
     </div>
   );

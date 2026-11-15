@@ -62,44 +62,56 @@
       inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
   }
 
-  /* ─── 2.5D Lunar Floor Plane (parent context) ─── */
-  /*
-   * The parent sets the perspective frustum.
-   * rotateX(60deg) tips the flat grid away from viewer
-   * into a believable lunar surface.
-   */
-  .perspective-floor {
+  /* ─── 2.5D Perspective Container ─────────────────────────────────────
+   * Sets the CSS 3D frustum that makes all children live in one shared
+   * perspective space. The vanishing point sits at the top-centre so the
+   * floor recedes convincingly into the starry horizon.
+   * ------------------------------------------------------------------*/
+  .perspective-container {
     perspective: 1200px;
-    perspective-origin: 50% 0%;       /* vanishing point at the top-centre */
+    perspective-origin: 50% 0%;       /* vanishing point: top-centre       */
     transform-style: preserve-3d;
   }
 
+  /* ─── Tilted Floor Plane ──────────────────────────────────────────────
+   * rotateX(60deg) tips the flat surface away from the viewer, turning
+   * it into a believable ground plane stretching to the horizon.
+   * transform-origin: center top keeps the near edge anchored in place.
+   * ------------------------------------------------------------------*/
+  .perspective-floor {
+    transform-style: preserve-3d;
+    transform: rotateX(60deg);
+    transform-origin: center top;
+  }
+
+  /* Legacy alias — keeps any older class references working */
   .perspective-floor-inner {
     transform-style: preserve-3d;
     transform: rotateX(60deg);
-    transform-origin: center top;      /* tilt down from the horizon */
+    transform-origin: center top;
   }
 
-  /* ─── Horizon Fade Mask ─────────────────────────────────────
-   * Fades the far (top) edge of the tilted grid into deep space.
-   * "transparent" == the distant horizon == blends to background.
-   * "black"       == the near (bottom) edge == fully visible.
-   * -----------------------------------------------------------*/
+  /* ─── Horizon Fade Mask ───────────────────────────────────────────────
+   * Applied to the perspective-container so the UNTILTED wrapper fades
+   * the top of the viewport seamlessly into deep space.
+   *
+   *   transparent  → the distant horizon (top of viewport)  = invisible
+   *   40% stop     → atmosphere haze transition zone
+   *   black        → near ground (bottom of viewport)        = fully visible
+   *
+   * Using -webkit- prefix for Safari / older Chrome.
+   * -----------------------------------------------------------------*/
   .grid-fade-mask {
     -webkit-mask-image: linear-gradient(
       to bottom,
       transparent 0%,
-      rgba(0, 0, 0, 0.15) 18%,
-      rgba(0, 0, 0, 0.6)  30%,
-      black 50%,
+      black 40%,
       black 100%
     );
     mask-image: linear-gradient(
       to bottom,
       transparent 0%,
-      rgba(0, 0, 0, 0.15) 18%,
-      rgba(0, 0, 0, 0.6)  30%,
-      black 50%,
+      black 40%,
       black 100%
     );
     -webkit-mask-size: 100% 100%;
@@ -108,27 +120,30 @@
     mask-repeat: no-repeat;
   }
 
-  /* ─── Module Billboarding ────────────────────────────────────
-   * Counter-rotates each module by exactly -60deg (the inverse
-   * of the floor) so the card stands perfectly upright.
-   * transform-origin: bottom center anchors the foot to the grid.
-   * ----------------------------------------------------------*/
+  /* ─── Module Billboarding ─────────────────────────────────────────────
+   * Counter-rotates each module by exactly -60deg (the inverse of the
+   * floor) so the card stands perfectly upright on-screen.
+   * transform-origin: bottom center anchors the foot to the grid surface.
+   *
+   * The spring cubic-bezier drives all hover / state transitions so every
+   * interaction feels tactile and bouncy (ideal for ages 7-12).
+   * -----------------------------------------------------------------*/
   .stand-upright {
     transform-origin: bottom center;
     transform: rotateX(-60deg);
     transform-style: preserve-3d;
-    /* Spring transition for hover / state changes */
+    /* Spring easing for all interactive transitions */
     transition:
-      transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
-      filter  0.3s ease,
-      box-shadow 0.3s ease;
+      transform  0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+      filter     0.3s  ease,
+      box-shadow 0.3s  ease;
     will-change: transform, filter;
   }
 
-  /* Tactile spring hover – scale 1.05 + lift 10px */
+  /* Tactile spring hover — lifts 10px and scales 5% */
   .stand-upright:hover {
     transform: rotateX(-60deg) translateY(-10px) scale(1.05);
-    filter: drop-shadow(0 18px 28px rgba(6, 182, 212, 0.4));
+    filter: drop-shadow(0 20px 30px rgba(6, 182, 212, 0.45));
     z-index: 20;
   }
 
@@ -154,22 +169,29 @@
    KEYFRAME ANIMATIONS
 ══════════════════════════════════════════════════════════════ */
 
-/* ─── Module Drop-In (deployed onto the grid) ─────────────────
- * Phase 1  0 %→40%  : falls from 120px above, fades in
- * Phase 2 40%→70%  : overshoots (spring) below the rest point
- * Phase 3 70%→85%  : bounces back up slightly
- * Phase 4 85%→100% : settles to final position
- * ----------------------------------------------------------*/
+/* ─── Module Drop-In (deployed onto the grid) ──────────────────
+ * Begins 140px above the resting position with 0 opacity.
+ * Falls through, overshoots slightly (spring physics), then
+ * settles to the final position — a satisfying "thud" landing
+ * that provides tactile feedback for the 7-12 age group.
+ *
+ *   0%  → 40%  : freefall from above, fades in
+ *   40% → 65%  : overshoots below (squish on landing)
+ *   65% → 85%  : spring bounce back up
+ *   85% → 100% : settles at rest
+ * -----------------------------------------------------------------*/
 @keyframes module-drop {
-  0%   { opacity: 0;    transform: rotateX(-60deg) translateY(-120px) scale(0.8); }
-  40%  { opacity: 1;    transform: rotateX(-60deg) translateY(14px)   scale(1.04); }
-  70%  { opacity: 1;    transform: rotateX(-60deg) translateY(-6px)   scale(0.98); }
-  85%  { opacity: 1;    transform: rotateX(-60deg) translateY(3px)    scale(1.01); }
-  100% { opacity: 1;    transform: rotateX(-60deg) translateY(0px)    scale(1); }
+  0%   { opacity: 0;   transform: rotateX(-60deg) translateY(-140px) scale(0.75); }
+  40%  { opacity: 1;   transform: rotateX(-60deg) translateY(16px)   scale(1.05); }
+  65%  { opacity: 1;   transform: rotateX(-60deg) translateY(-8px)   scale(0.97); }
+  85%  { opacity: 1;   transform: rotateX(-60deg) translateY(4px)    scale(1.02); }
+  100% { opacity: 1;   transform: rotateX(-60deg) translateY(0px)    scale(1);    }
 }
 
-.module-drop {
-  animation: module-drop 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+/* Apply with the .animate-module-drop utility class */
+.module-drop,
+.animate-module-drop {
+  animation: module-drop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 /* ─── Emergency Strobe ─── */
@@ -204,11 +226,6 @@
 }
 .animate-deploy-pulse { animation: deployment-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 
-/* ─── Deployment Zone Inner Ring ─── */
-@keyframes deploy-ring-spin {
-  to { transform: rotateX(-60deg) rotate(360deg); }
-}
-
 /* ─── Alert Pulse ─── */
 @keyframes alert-pulse {
   0%, 100% { background-color: theme('colors.red.950'); border-color: theme('colors.red.900'); }
@@ -231,4 +248,373 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Destination-specific scene layers stay behind the interactive outpost. */
+.environment-scene {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #07090d;
+  transition: background 1.2s ease, filter 1.2s ease;
+}
+
+.environment-scene[data-scenario='mars'] {
+  background:
+    radial-gradient(ellipse at 50% 62%, rgba(147, 63, 35, 0.3), transparent 56%),
+    linear-gradient(180deg, #130d11 0%, #2a1718 46%, #563022 76%, #241716 100%);
+}
+
+.environment-scene[data-scenario='moon'] {
+  background:
+    radial-gradient(ellipse at 50% 62%, rgba(107, 126, 145, 0.13), transparent 50%),
+    linear-gradient(180deg, #020307 0%, #060a13 58%, #111722 82%, #080b10 100%);
+}
+
+.environment-stars {
+  position: absolute;
+  inset: 0 0 28%;
+  opacity: 0.6;
+  background-image:
+    radial-gradient(1px 1px at 10% 18%, rgba(255,255,255,.82) 50%, transparent 100%),
+    radial-gradient(1px 1px at 27% 38%, rgba(210,226,255,.7) 50%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 42% 14%, rgba(255,255,255,.8) 50%, transparent 100%),
+    radial-gradient(1px 1px at 59% 32%, rgba(220,230,255,.68) 50%, transparent 100%),
+    radial-gradient(1px 1px at 74% 17%, rgba(255,255,255,.78) 50%, transparent 100%),
+    radial-gradient(1px 1px at 88% 40%, rgba(220,230,255,.65) 50%, transparent 100%);
+  background-size: 390px 250px;
+  animation: star-drift 90s linear infinite;
+}
+
+.environment-scene[data-scenario='mars'] .environment-stars {
+  opacity: 0.16;
+}
+
+.environment-celestial {
+  position: absolute;
+  top: 11%;
+  right: 15%;
+  width: clamp(5rem, 11vw, 9rem);
+  aspect-ratio: 1;
+}
+
+.environment-sun {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 36%, #ffdb9a 0%, #f5a85a 42%, #a34a34 100%);
+  box-shadow: 0 0 28px rgba(245, 158, 85, .3), 0 0 100px rgba(191, 81, 51, .16);
+  animation: solar-breathe 18s ease-in-out infinite alternate;
+}
+
+.environment-earth {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid rgba(208, 229, 255, .6);
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 25% 35%, rgba(174, 218, 255, .5), transparent 25%),
+    radial-gradient(ellipse at 58% 58%, #3d82b0 0%, #15426b 48%, #091528 76%);
+  box-shadow: 0 0 20px rgba(112, 174, 230, .38), 0 0 72px rgba(89, 143, 200, .15);
+  animation: earth-float 24s ease-in-out infinite alternate;
+}
+
+.environment-earth span {
+  position: absolute;
+  inset: 12% -25%;
+  border-radius: 50%;
+  background: repeating-linear-gradient(165deg, transparent 0 13px, rgba(210, 235, 248, .2) 14px 18px, transparent 19px 31px);
+  transform: rotate(-18deg);
+}
+
+.environment-haze {
+  position: absolute;
+  right: -10%;
+  bottom: 23%;
+  left: -10%;
+  height: 28%;
+  background: linear-gradient(180deg, transparent, rgba(174, 101, 69, .16) 40%, transparent);
+  transition: opacity .8s ease;
+}
+
+.environment-scene[data-scenario='moon'] .environment-haze {
+  background: linear-gradient(180deg, transparent, rgba(135, 157, 181, .09) 40%, transparent);
+}
+
+.environment-ridge {
+  position: absolute;
+  right: -8%;
+  bottom: 19%;
+  left: -8%;
+  height: 28%;
+  transform-origin: center bottom;
+}
+
+.environment-ridge-far {
+  background: linear-gradient(180deg, rgba(76, 46, 43, .6), rgba(31, 24, 28, .84));
+  clip-path: polygon(0 76%, 9% 51%, 18% 63%, 31% 24%, 39% 51%, 49% 35%, 58% 57%, 70% 17%, 81% 51%, 90% 39%, 100% 69%, 100% 100%, 0 100%);
+  animation: terrain-drift 74s ease-in-out infinite alternate;
+}
+
+.environment-ridge-near {
+  bottom: 13%;
+  height: 24%;
+  opacity: .76;
+  background: linear-gradient(180deg, rgba(70, 45, 39, .92), rgba(20, 17, 18, .98));
+  clip-path: polygon(0 65%, 14% 38%, 25% 59%, 39% 29%, 50% 62%, 64% 41%, 78% 61%, 89% 31%, 100% 60%, 100% 100%, 0 100%);
+  animation: terrain-drift 96s ease-in-out infinite alternate-reverse;
+}
+
+.environment-scene[data-scenario='moon'] .environment-ridge-far {
+  background: linear-gradient(180deg, rgba(75, 84, 98, .55), rgba(26, 31, 39, .85));
+}
+
+.environment-scene[data-scenario='moon'] .environment-ridge-near {
+  background: linear-gradient(180deg, rgba(91, 100, 111, .88), rgba(23, 28, 35, .98));
+}
+
+.environment-terrain {
+  position: absolute;
+  right: -8%;
+  bottom: -5%;
+  left: -8%;
+  height: 31%;
+  overflow: hidden;
+  border-top: 1px solid rgba(240, 156, 105, .2);
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(201, 111, 72, .24), transparent 48%),
+    linear-gradient(180deg, #3e2824 0%, #21191a 38%, #111116 100%);
+  box-shadow: inset 0 22px 50px rgba(5, 5, 8, .38);
+  transition: background 1s ease, border-color 1s ease;
+}
+
+.environment-scene[data-scenario='moon'] .environment-terrain {
+  border-color: rgba(195, 216, 240, .24);
+  background:
+    radial-gradient(ellipse at 55% 0%, rgba(169, 184, 203, .22), transparent 46%),
+    linear-gradient(180deg, #434955 0%, #232831 39%, #101319 100%);
+}
+
+.terrain-rock,
+.terrain-crater {
+  position: absolute;
+  display: block;
+}
+
+.terrain-rock {
+  bottom: 38%;
+  width: clamp(2.2rem, 5vw, 5rem);
+  height: clamp(1.1rem, 2.2vw, 2rem);
+  background: linear-gradient(140deg, rgba(157, 100, 75, .74), rgba(48, 36, 34, .94) 70%);
+  clip-path: polygon(10% 78%, 24% 26%, 43% 0, 68% 18%, 91% 61%, 100% 100%, 0 100%);
+  filter: drop-shadow(0 5px 7px rgba(0,0,0,.4));
+}
+
+.terrain-rock-one { left: 15%; }
+.terrain-rock-two { right: 21%; bottom: 48%; transform: scale(.7); }
+
+.environment-scene[data-scenario='moon'] .terrain-rock {
+  background: linear-gradient(140deg, rgba(183, 193, 205, .65), rgba(58, 65, 76, .96) 70%);
+}
+
+.terrain-crater {
+  bottom: 10%;
+  width: clamp(5rem, 12vw, 12rem);
+  height: clamp(1rem, 2vw, 2rem);
+  border: 1px solid rgba(255, 202, 159, .18);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(14, 13, 16, .6) 0 40%, rgba(111, 62, 47, .24) 42% 58%, transparent 72%);
+  box-shadow: 0 9px 9px -8px rgba(0, 0, 0, .8);
+}
+
+.terrain-crater-one { left: 30%; }
+.terrain-crater-two { right: 29%; bottom: 31%; transform: scale(.65); }
+
+.environment-scene[data-scenario='moon'] .terrain-crater {
+  border-color: rgba(224, 232, 240, .2);
+  background: radial-gradient(ellipse, rgba(10, 13, 18, .72) 0 40%, rgba(171, 183, 197, .2) 42% 58%, transparent 72%);
+}
+
+.environment-event-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .8s ease;
+}
+
+.environment-scene[data-dust-storm='true'] .environment-event-layer {
+  opacity: .74;
+  background: linear-gradient(110deg, transparent 5%, rgba(176, 88, 52, .16) 38%, rgba(199, 101, 55, .28) 54%, transparent 83%);
+  background-size: 220% 100%;
+  animation: storm-sweep 18s ease-in-out infinite alternate;
+}
+
+.environment-scene[data-lunar-night='true'] .environment-event-layer {
+  opacity: .58;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .6), transparent 64%);
+}
+
+.environment-scene[data-solar-event='true'] .environment-event-layer {
+  opacity: .24;
+  background: radial-gradient(ellipse at 78% 14%, rgba(162, 85, 204, .5), transparent 42%);
+  animation: solar-flux 8s ease-in-out infinite alternate;
+}
+
+.environment-scene[data-equipment-failure='true'] .environment-event-layer,
+.environment-scene[data-emergency='true'] .environment-event-layer {
+  opacity: .12;
+  background: radial-gradient(ellipse at 50% 82%, rgba(239, 68, 68, .46), transparent 65%);
+  animation: alert-breathe 3s ease-in-out infinite;
+}
+
+.environment-scene[data-scenario='moon'][data-emergency='true'] .environment-event-layer {
+  background: radial-gradient(ellipse at 50% 82%, rgba(96, 165, 250, .4), transparent 65%);
+}
+
+.environment-scene[data-scenario='moon'][data-equipment-failure='true'] .environment-event-layer {
+  background: radial-gradient(ellipse at 50% 82%, rgba(96, 165, 250, .32), transparent 65%);
+}
+
+.environment-particles {
+  position: absolute;
+  inset: 12% 0 15%;
+  overflow: hidden;
+}
+
+.environment-particles span {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(245, 189, 145, .54);
+  box-shadow: 0 0 5px rgba(244, 173, 125, .22);
+  opacity: .35;
+  animation: particle-float 25s linear infinite;
+}
+
+.environment-scene[data-scenario='moon'] .environment-particles span {
+  background: rgba(219, 233, 247, .66);
+  box-shadow: 0 0 5px rgba(187, 217, 244, .3);
+}
+
+.environment-scene[data-dust-storm='true'] .environment-particles span {
+  opacity: .7;
+  animation-duration: 9s !important;
+}
+
+.environment-horizon-light {
+  position: absolute;
+  right: -10%;
+  bottom: 23%;
+  left: -10%;
+  height: 12%;
+  background: linear-gradient(180deg, transparent, rgba(227, 139, 91, .12), transparent);
+  filter: blur(12px);
+}
+
+.environment-scene[data-scenario='moon'] .environment-horizon-light {
+  background: linear-gradient(180deg, transparent, rgba(170, 197, 224, .1), transparent);
+}
+
+.environment-scene[data-lunar-night='true'] .environment-sun,
+.environment-scene[data-scenario='moon'] .environment-sun {
+  opacity: .25;
+}
+
+@keyframes particle-float {
+  from { transform: translate3d(-12px, 30px, 0); }
+  to { transform: translate3d(35px, -65px, 0); }
+}
+
+@keyframes star-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-16px, 10px, 0); }
+}
+
+@keyframes terrain-drift {
+  from { transform: translate3d(-1.5%, 0, 0); }
+  to { transform: translate3d(1.5%, 0, 0); }
+}
+
+@keyframes solar-breathe {
+  from { filter: brightness(.92); }
+  to { filter: brightness(1.08); }
+}
+
+@keyframes earth-float {
+  from { transform: translateY(0); }
+  to { transform: translateY(9px); }
+}
+
+@keyframes storm-sweep {
+  from { background-position: 0 0; }
+  to { background-position: 100% 0; }
+}
+
+@keyframes solar-flux {
+  from { opacity: .12; }
+  to { opacity: .42; }
+}
+
+@keyframes alert-breathe {
+  from { opacity: .06; }
+  to { opacity: .2; }
+}
+
+.module-impact {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.module-impact::before {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  width: 76%;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(230, 138, 86, .34);
+  content: '';
+  opacity: 0;
+  transform: translateX(-50%) scale(.2);
+  animation: module-impact-ring .55s .36s ease-out both;
+}
+
+[data-scenario='moon'] .module-impact::before {
+  background: rgba(187, 211, 235, .34);
+}
+
+.module-impact > span {
+  position: absolute;
+  bottom: 7px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #d7a07c;
+  opacity: 0;
+  animation: module-debris .55s .38s ease-out both;
+}
+
+[data-scenario='moon'] .module-impact > span {
+  background: #d6e2ef;
+}
+
+.module-impact > span:nth-child(1) { --debris-x: -34px; --debris-y: -17px; }
+.module-impact > span:nth-child(2) { --debris-x: -15px; --debris-y: -26px; }
+.module-impact > span:nth-child(3) { --debris-x: 20px; --debris-y: -23px; }
+.module-impact > span:nth-child(4) { --debris-x: 39px; --debris-y: -11px; }
+
+@keyframes module-impact-ring {
+  0% { opacity: .7; transform: translateX(-50%) scale(.2); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1.25); }
+}
+
+@keyframes module-debris {
+  0% { opacity: .85; transform: translate(0, 0) scale(.7); }
+  100% { opacity: 0; transform: translate(var(--debris-x), var(--debris-y)) scale(.15); }
 }

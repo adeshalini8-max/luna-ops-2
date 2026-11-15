@@ -8,6 +8,7 @@ export interface LocalSettings {
   mode: Mode;
   realSunMode: boolean;
   soundEnabled: boolean;
+  briefingEnabled: boolean;
   tutorialSeen: boolean;
 }
 
@@ -21,6 +22,7 @@ export const DEFAULT_LOCAL_SETTINGS: LocalSettings = {
   mode: 'cadet',
   realSunMode: false,
   soundEnabled: false,
+  briefingEnabled: true,
   tutorialSeen: false,
 };
 
@@ -49,6 +51,7 @@ export function loadLocalSettings(): {
         mode: value.mode === 'engineer' ? 'engineer' : 'cadet',
         realSunMode: value.realSunMode === true,
         soundEnabled: value.soundEnabled === true,
+        briefingEnabled: value.briefingEnabled !== false,
         tutorialSeen: value.tutorialSeen === true,
       },
       warning: '',
