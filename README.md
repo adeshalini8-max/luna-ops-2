@@ -57,3 +57,6 @@ npm run preview
 ## Hackathon pitch (about 30 seconds)
 
 > Outpost Zero turns lunar and Mars base planning into a hands-on systems challenge. Build a crewed outpost within a real trade-off budget, then operate it through deterministic resource pressure, equipment faults, dust storms, lunar nights, and historical solar-particle events from NASA's DONKI archive. When a mission fails, the debrief traces the chain of causes so players can learn what to redesign—not just see a game-over screen. The simulation's numbers are explicitly educational, not flight-design guidance.
+
+## we have added a mini game in it to which can kids play and collect o2 crystal.
+
