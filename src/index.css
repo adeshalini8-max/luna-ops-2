@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  /* Use this class for numbers, timers, and HUD elements */
+  .font-hud {
+    font-family: 'Space Grotesk', monospace;
+  }
+
+  /* Custom sleek scrollbar for mission control panels */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: theme('colors.zinc.900'); 
+  }
+  ::-webkit-scrollbar-thumb {
+    background: theme('colors.zinc.700'); 
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: theme('colors.zinc.500'); 
+  }
+}
+
+@layer utilities {
+  /* CRT Monitor scanline effect overlay */
+  .scanlines {
+    position: relative;
+  }
+  .scanlines::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(255,255,255,0),
+      rgba(255,255,255,0) 50%,
+      rgba(0,0,0,0.1) 50%,
+      rgba(0,0,0,0.1)
+    );
+    background-size: 100% 4px;
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  /* Hardware-accelerated full screen blur for debrief/pause screens */
+  .glass-panel {
+    @apply bg-zinc-900/80 backdrop-blur-md border border-zinc-800 shadow-2xl;
+  }
+}
+
+/* Custom UI Animations */
+@keyframes alert-pulse {
+  0%, 100% { background-color: theme('colors.red.950'); border-color: theme('colors.red.900'); }
+  50% { background-color: theme('colors.red.900'); border-color: theme('colors.red.500'); box-shadow: 0 0 15px theme('colors.red.500/20'); }
+}
+.animate-alert {
+  animation: alert-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
