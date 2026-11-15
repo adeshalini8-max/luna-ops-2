@@ -101,3 +101,53 @@ test('a share link deterministically replays the failed mission and cause chain'
     originalChain.replace(/\s+/gu, ' ').trim(),
   );
 });
+
+test('mission settings switch the live environment and persist across reloads', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByTestId('start-mission').click();
+  await page.getByRole('button', { name: /moon/i }).click();
+  await page.getByRole('button', { name: /engineer/i }).click();
+  await page.getByLabel('Include interactive 90-second briefing').uncheck();
+  await page.getByTestId('continue-selection').click();
+
+  await expect(page.locator('.environment-scene')).toHaveAttribute(
+    'data-scenario',
+    'moon',
+  );
+  await expect(page.locator('header[data-scenario]')).toContainText('Lunar Station');
+  await expect(page.locator('header[data-scenario]')).toContainText('engineer');
+
+  await page.getByRole('button', { name: 'Mission settings' }).click();
+  const settings = page.getByRole('dialog', { name: 'Mission Configuration' });
+  await expect(settings).toBeVisible();
+  await settings.getByRole('button', { name: /mars/i }).click();
+  await settings.getByRole('button', { name: 'cadet' }).click();
+
+  await expect(page.locator('.environment-scene')).toHaveAttribute(
+    'data-scenario',
+    'mars',
+  );
+  await expect(page.locator('header[data-scenario]')).toContainText('Mars Outpost');
+  await expect(page.locator('header[data-scenario]')).toContainText('cadet');
+
+  await settings.getByRole('button', { name: 'Close mission settings' }).click();
+  await page.getByTestId('start-operations').click();
+  await page.getByRole('button', { name: 'Mission settings' }).click();
+  await expect(page.getByRole('dialog', { name: 'Mission Configuration' })).toBeVisible();
+
+  await page.reload();
+  await page.getByTestId('start-mission').click();
+  await expect(page.getByRole('button', { name: /mars/i })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: /cadet/i })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(
+    page.getByLabel('Include interactive 90-second briefing'),
+  ).not.toBeChecked();
+});

@@ -1,12 +1,21 @@
+
 import { create } from 'zustand';
+
 import {
   DEFAULT_MODE,
   DEFAULT_SCENARIO,
   DEFAULT_SEED,
 } from '../engine/constants';
-import { applyAction, createInitialMissionState, step } from '../engine/loop';
+
+import {
+  applyAction,
+  createInitialMissionState,
+  step,
+} from '../engine/loop';
+
 import { mulberry32 } from '../engine/rng';
 import { BUNDLED_SUN_EVENTS } from '../data/sunEvents';
+
 import type {
   Action,
   AppPhase,
@@ -22,18 +31,40 @@ import type {
 export { INITIAL_RESOURCES } from '../engine/constants';
 export { AVAILABLE_MODULES } from '../engine/modules';
 
+/* ================================================================
+   MISSION STATE FACTORIES
+   ================================================================ */
+
 function createMissionState(
   seed: number,
   scenario: Scenario,
   mode: Mode,
   sunEvents: readonly SunEventRecord[],
 ) {
-  return createInitialMissionState(seed, scenario, mode, sunEvents);
+  return createInitialMissionState(
+    seed,
+    scenario,
+    mode,
+    sunEvents,
+  );
 }
 
-function missionFlow(phase: AppPhase, seed: number, scenario: Scenario, mode: Mode, sunEvents: readonly SunEventRecord[]) {
+function missionFlow(
+  phase: AppPhase,
+  seed: number,
+  scenario: Scenario,
+  mode: Mode,
+  sunEvents: readonly SunEventRecord[],
+) {
+  const mission = createMissionState(
+    seed,
+    scenario,
+    mode,
+    sunEvents,
+  );
+
   return {
-    ...createMissionState(seed, scenario, mode, sunEvents),
+    ...mission,
     appPhase: phase,
     selectedScenario: scenario,
     selectedMode: mode,
@@ -44,17 +75,78 @@ function missionFlow(phase: AppPhase, seed: number, scenario: Scenario, mode: Mo
   };
 }
 
+function getLatestActionError(
+  state: MissionState,
+  fallback: string,
+): string {
+  const latestAction = state.actionLog.at(-1);
+
+  if (latestAction?.status === 'rejected') {
+    return latestAction.message || fallback;
+  }
+
+  return '';
+}
+
+function cloneSunEvents(
+  events: readonly SunEventRecord[],
+): SunEventRecord[] {
+  return events.map((event) => ({ ...event }));
+}
+
+/* ================================================================
+   GAME STORE
+   ================================================================ */
+
 export const useGameStore = create<GameState>((set) => ({
-  ...missionFlow('title', DEFAULT_SEED, DEFAULT_SCENARIO, DEFAULT_MODE, []),
+  /* --------------------------------------------------------------
+     INITIAL STATE
+     -------------------------------------------------------------- */
+
+  ...missionFlow(
+    'title',
+    DEFAULT_SEED,
+    DEFAULT_SCENARIO,
+    DEFAULT_MODE,
+    [],
+  ),
+
   tickSpeed: 1,
   realSunMode: false,
-  sunEvents: BUNDLED_SUN_EVENTS.map((event) => ({ ...event })),
 
-  goToSelect: () => set({ appPhase: 'select', inputError: '' }),
+  sunEvents: cloneSunEvents(BUNDLED_SUN_EVENTS),
 
-  chooseScenario: (scenario) => set({ selectedScenario: scenario, inputError: '' }),
+  /* --------------------------------------------------------------
+     NAVIGATION AND CONFIGURATION
+     -------------------------------------------------------------- */
 
-  chooseMode: (mode) => set({ selectedMode: mode, inputError: '' }),
+  goToSelect: () =>
+    set({
+      appPhase: 'select',
+      inputError: '',
+    }),
+
+  chooseScenario: (scenario: Scenario) =>
+    set({
+      selectedScenario: scenario,
+      inputError: '',
+    }),
+
+  chooseMode: (mode: Mode) =>
+    set((state) => ({
+      selectedMode: mode,
+
+      ...(state.appPhase === 'design' ||
+      state.appPhase === 'operate'
+        ? { mode }
+        : {}),
+
+      inputError: '',
+    })),
+
+  /* --------------------------------------------------------------
+     TUTORIAL
+     -------------------------------------------------------------- */
 
   enterTutorial: () =>
     set((state) => ({
@@ -65,6 +157,7 @@ export const useGameStore = create<GameState>((set) => ({
         state.selectedMode,
         state.realSunMode ? state.sunEvents : [],
       ),
+
       tickSpeed: state.tickSpeed,
       realSunMode: state.realSunMode,
       sunEvents: state.sunEvents,
@@ -72,13 +165,27 @@ export const useGameStore = create<GameState>((set) => ({
 
   skipTutorial: () =>
     set((state) =>
-      state.appPhase === 'tutorial' ? { appPhase: 'design' } : state,
+      state.appPhase === 'tutorial'
+        ? {
+            appPhase: 'design',
+            inputError: '',
+          }
+        : state,
     ),
 
   finishTutorial: () =>
     set((state) =>
-      state.appPhase === 'tutorial' ? { appPhase: 'design' } : state,
+      state.appPhase === 'tutorial'
+        ? {
+            appPhase: 'design',
+            inputError: '',
+          }
+        : state,
     ),
+
+  /* --------------------------------------------------------------
+     MISSION INITIALIZATION
+     -------------------------------------------------------------- */
 
   startMission: (seed = DEFAULT_SEED) =>
     set((state) => ({
@@ -89,128 +196,11 @@ export const useGameStore = create<GameState>((set) => ({
         state.selectedMode,
         state.realSunMode ? state.sunEvents : [],
       ),
+
       tickSpeed: state.tickSpeed,
       realSunMode: state.realSunMode,
       sunEvents: state.sunEvents,
     })),
-
-  startOperations: () =>
-    set((state) => {
-      if (state.appPhase !== 'design') return state;
-      return { appPhase: 'operate', isPaused: false, inputError: '' };
-    }),
-
-  setTickSpeed: (speed: TickSpeed) => set({ tickSpeed: speed }),
-
-  setRealSunMode: (enabled) => set({ realSunMode: enabled }),
-
-  setSunEvents: (events) => set({ sunEvents: events }),
-
-  loadReplay: (payload: ReplayPayload) =>
-    set(() => {
-      const base = missionFlow(
-        'operate',
-        payload.seed,
-        payload.scenario,
-        payload.mode,
-        payload.realSunMode ? payload.sunEvents ?? [] : [],
-      );
-      return {
-        ...base,
-        isPaused: false,
-        tickSpeed: 5,
-        realSunMode: payload.realSunMode ?? false,
-        sunEvents: payload.sunEvents ?? [],
-        missionSunEvents: payload.realSunMode ? (payload.sunEvents ?? []).map((event) => ({ ...event })) : [],
-        replayActions: payload.actions,
-        replayCursor: 0,
-      };
-    }),
-
-  setInputError: (message) => set({ inputError: message }),
-
-  togglePause: () =>
-    set((state) => {
-      if (state.gameOver || state.missionResult?.success || state.appPhase !== 'operate') {
-        return state;
-      }
-      return { isPaused: !state.isPaused };
-    }),
-
-  buildModule: (moduleId) =>
-    set((state) => {
-      if (state.appPhase !== 'design') {
-        return { inputError: 'Modules can only be deployed during the Design phase.' };
-      }
-      const nextState = applyAction(state, {
-        day: state.daysPassed,
-        type: 'deploy-module',
-        payload: { moduleId },
-      });
-      return {
-        ...nextState,
-        inputError:
-          nextState.actionLog.at(-1)?.status === 'rejected'
-            ? nextState.actionLog.at(-1)?.message ?? 'Module deployment was rejected.'
-            : '',
-      };
-    }),
-
-  dispatchAction: (action: Action) =>
-    set((state) => {
-      if (state.appPhase !== 'operate') {
-        return { inputError: 'This action is only available during operations.' };
-      }
-      const nextState = applyAction(state, action);
-      return {
-        ...nextState,
-        inputError:
-          nextState.actionLog.at(-1)?.status === 'rejected'
-            ? nextState.actionLog.at(-1)?.message ?? 'Action was rejected.'
-            : '',
-      };
-    }),
-
-  tick: () =>
-    set((state) => {
-      if (
-        state.appPhase !== 'operate' ||
-        state.isPaused ||
-        state.gameOver ||
-        state.missionResult?.success
-      ) {
-        return state;
-      }
-
-      let mission: MissionState = state;
-      let replayCursor = state.replayCursor;
-      while (
-        replayCursor < state.replayActions.length &&
-        state.replayActions[replayCursor].day === mission.daysPassed
-      ) {
-        mission = applyAction(mission, state.replayActions[replayCursor]);
-        replayCursor += 1;
-      }
-
-      const nextState = step(mission, mulberry32(state.seed));
-      const nextDay = nextState.daysPassed;
-      const pausedByEvent = nextState.events.some(
-        (event) =>
-          event.startDay === nextDay || event.warningStartDay === nextDay,
-      );
-      const appPhase = nextState.gameOver
-        ? 'debrief'
-        : nextState.missionResult?.success
-          ? 'result'
-          : state.appPhase;
-
-      return {
-        ...nextState,
-        appPhase,
-        isPaused: nextState.gameOver || nextState.missionResult?.success === true || pausedByEvent,
-        replayCursor,
-      };
-    }),
 
   restartMission: () =>
     set((state) => ({
@@ -221,8 +211,251 @@ export const useGameStore = create<GameState>((set) => ({
         state.selectedMode,
         state.realSunMode ? state.sunEvents : [],
       ),
+
       tickSpeed: state.tickSpeed,
       realSunMode: state.realSunMode,
       sunEvents: state.sunEvents,
     })),
+
+  startOperations: () =>
+    set((state) => {
+      if (state.appPhase !== 'design') {
+        return state;
+      }
+
+      return {
+        appPhase: 'operate',
+        isPaused: false,
+        inputError: '',
+      };
+    }),
+
+  /* --------------------------------------------------------------
+     SIMULATION CONTROLS
+     -------------------------------------------------------------- */
+
+  setTickSpeed: (speed: TickSpeed) =>
+    set({
+      tickSpeed: speed,
+    }),
+
+  togglePause: () =>
+    set((state) => {
+      const cannotPause =
+        state.gameOver ||
+        state.missionResult?.success ||
+        state.appPhase !== 'operate';
+
+      if (cannotPause) {
+        return state;
+      }
+
+      return {
+        isPaused: !state.isPaused,
+      };
+    }),
+
+  /* --------------------------------------------------------------
+     REAL SUN EVENT CONFIGURATION
+     -------------------------------------------------------------- */
+
+  setRealSunMode: (enabled: boolean) =>
+    set({
+      realSunMode: enabled,
+    }),
+
+  setSunEvents: (events: SunEventRecord[]) =>
+    set({
+      sunEvents: cloneSunEvents(events),
+    }),
+
+  /* --------------------------------------------------------------
+     REPLAY SYSTEM
+     -------------------------------------------------------------- */
+
+  loadReplay: (payload: ReplayPayload) =>
+    set(() => {
+      const replaySunEvents = payload.sunEvents ?? [];
+
+      const missionEvents = payload.realSunMode
+        ? replaySunEvents
+        : [];
+
+      const base = missionFlow(
+        'operate',
+        payload.seed,
+        payload.scenario,
+        payload.mode,
+        missionEvents,
+      );
+
+      return {
+        ...base,
+
+        isPaused: false,
+        tickSpeed: 5,
+
+        realSunMode: payload.realSunMode ?? false,
+
+        sunEvents: cloneSunEvents(replaySunEvents),
+
+        missionSunEvents: payload.realSunMode
+          ? cloneSunEvents(replaySunEvents)
+          : [],
+
+        replayActions: [...payload.actions],
+        replayCursor: 0,
+      };
+    }),
+
+  /* --------------------------------------------------------------
+     ERROR HANDLING
+     -------------------------------------------------------------- */
+
+  setInputError: (message: string) =>
+    set({
+      inputError: message,
+    }),
+
+  /* --------------------------------------------------------------
+     MODULE DEPLOYMENT
+     -------------------------------------------------------------- */
+
+  buildModule: (moduleId: string) =>
+    set((state) => {
+      if (state.appPhase !== 'design') {
+        return {
+          inputError:
+            'Modules can only be deployed during the Design phase.',
+        };
+      }
+
+      const nextState = applyAction(state, {
+        day: state.daysPassed,
+        type: 'deploy-module',
+        payload: {
+          moduleId,
+        },
+      });
+
+      return {
+        ...nextState,
+
+        inputError: getLatestActionError(
+          nextState,
+          'Module deployment was rejected.',
+        ),
+      };
+    }),
+
+  /* --------------------------------------------------------------
+     GENERAL ACTION DISPATCHER
+     -------------------------------------------------------------- */
+
+  dispatchAction: (action: Action) =>
+    set((state) => {
+      if (state.appPhase !== 'operate') {
+        return {
+          inputError:
+            'This action is only available during operations.',
+        };
+      }
+
+      const nextState = applyAction(state, action);
+
+      return {
+        ...nextState,
+
+        inputError: getLatestActionError(
+          nextState,
+          'Action was rejected.',
+        ),
+      };
+    }),
+
+  /* --------------------------------------------------------------
+     SIMULATION TICK
+     -------------------------------------------------------------- */
+
+  tick: () =>
+    set((state) => {
+      /* Prevent simulation outside active operations. */
+
+      if (
+        state.appPhase !== 'operate' ||
+        state.isPaused ||
+        state.gameOver ||
+        state.missionResult?.success
+      ) {
+        return state;
+      }
+
+      /* ----------------------------------------------------------
+         APPLY REPLAY ACTIONS FOR THE CURRENT DAY
+         ---------------------------------------------------------- */
+
+      let mission: MissionState = state;
+      let replayCursor = state.replayCursor;
+
+      while (
+        replayCursor < state.replayActions.length &&
+        state.replayActions[replayCursor].day ===
+          mission.daysPassed
+      ) {
+        mission = applyAction(
+          mission,
+          state.replayActions[replayCursor],
+        );
+
+        replayCursor += 1;
+      }
+
+      /* ----------------------------------------------------------
+         ADVANCE SIMULATION
+         ---------------------------------------------------------- */
+
+      const nextState = step(
+        mission,
+        mulberry32(state.seed),
+      );
+
+      const nextDay = nextState.daysPassed;
+
+      /* ----------------------------------------------------------
+         DETECT AUTOMATIC EVENT PAUSE
+         ---------------------------------------------------------- */
+
+      const pausedByEvent = nextState.events.some(
+        (event) =>
+          event.startDay === nextDay ||
+          event.warningStartDay === nextDay,
+      );
+
+      /* ----------------------------------------------------------
+         DETERMINE APPLICATION PHASE
+         ---------------------------------------------------------- */
+
+      const appPhase: AppPhase = nextState.gameOver
+        ? 'debrief'
+        : nextState.missionResult?.success
+          ? 'result'
+          : state.appPhase;
+
+      /* ----------------------------------------------------------
+         RETURN UPDATED STATE
+         ---------------------------------------------------------- */
+
+      return {
+        ...nextState,
+
+        appPhase,
+
+        isPaused:
+          nextState.gameOver ||
+          nextState.missionResult?.success === true ||
+          pausedByEvent,
+
+        replayCursor,
+      };
+    }),
 }));
