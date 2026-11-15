@@ -1,30 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
-  Activity,
-  AlertTriangle,
   ArrowRight,
   BookOpen,
+  Bot,
   Check,
+  ChevronDown,
   ChevronRight,
-  CircleHelp,
+  ChevronUp,
   Clock3,
+  GitBranch,
   Globe2,
   Moon,
-  Play,
-  Plus,
   Radio,
   RefreshCw,
   Sun,
-  Wrench,
 } from 'lucide-react';
 import { MISSION_DURATION_DAYS } from './engine/constants';
 import { createReplayPayload, decodeReplayPayload, encodeReplayPayload } from './engine/share';
-import { forecastMission } from './engine/loop';
 import { loadSunEventsFromDonki } from './services/nasaDonki';
-import { useGameStore, AVAILABLE_MODULES } from './store/gameStore';
+import { useGameStore } from './store/gameStore';
 import ResourceBar from './components/hud/ResourceBar';
 import TimeControls from './components/hud/TimeControls';
+import BuildMenu from './components/hud/BuildMenu';
 import Grid from './components/base/Grid';
 import ResourceFlow from './components/base/ResourceFlow';
 import AdvisorChat from './components/overlays/AdvisorChat';
@@ -35,13 +33,7 @@ import {
   saveLocalSettings,
 } from './storage/localData';
 import type { LocalSettings } from './storage/localData';
-import type {
-  Action,
-  CauseLog,
-  Mode,
-  OutpostModule,
-  Scenario,
-} from './engine/types';
+import type { Action, CauseLog, Mode, Scenario } from './engine/types';
 
 const REPLAY_QUERY = 'share';
 
@@ -49,12 +41,12 @@ function isCriticalLog(log: string) {
   return log.includes('CRITICAL') || log.includes('WARNING') || log.includes('STARVED');
 }
 
-function formatResource(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-
 function PhaseBadge({ children }: { children: ReactNode }) {
-  return <span className="inline-flex items-center gap-1 rounded border border-cyan-900/70 bg-cyan-950/40 px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-cyan-300">{children}</span>;
+  return (
+    <span className="inline-flex items-center gap-1 rounded border border-cyan-800/60 bg-cyan-950/60 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-cyan-300 shadow-sm">
+      {children}
+    </span>
+  );
 }
 
 function PrimaryButton({
@@ -74,7 +66,7 @@ function PrimaryButton({
       data-testid={testId}
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex min-h-11 items-center justify-center gap-2 rounded bg-cyan-600 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-cyan-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-600 to-cyan-500 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-black transition-all hover:from-cyan-400 hover:to-cyan-300 hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
     >
       {children}
     </button>
@@ -85,38 +77,50 @@ function TitleScreen() {
   const goToSelect = useGameStore((state) => state.goToSelect);
   const best = loadBestRun();
   return (
-    <div className="flex min-h-full items-center justify-center p-4 sm:p-8">
-      <section className="glass-panel w-full max-w-4xl overflow-hidden rounded-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
+      <section className="glass-panel w-full max-w-4xl overflow-hidden rounded-2xl border border-cyan-500/40 shadow-[0_0_80px_rgba(0,0,0,0.9)] animate-fade-in-up">
         <div className="grid md:grid-cols-[1.2fr_0.8fr]">
           <div className="p-6 sm:p-10">
-            <PhaseBadge><Radio className="h-3 w-3" /> Mission Control · Training Sim</PhaseBadge>
-            <h2 className="mt-5 text-3xl font-black uppercase leading-tight tracking-[0.12em] sm:text-5xl">
-              Build a base.<br /><span className="text-cyan-300">Keep them alive.</span>
+            <PhaseBadge>
+              <Radio className="h-3 w-3" /> Mission Control · Training Sim
+            </PhaseBadge>
+            <h2 className="mt-5 text-3xl font-black uppercase leading-tight tracking-[0.14em] sm:text-5xl text-glow-cyan">
+              Build a base.
+              <br />
+              <span className="text-cyan-300">Keep them alive.</span>
             </h2>
-            <p className="mt-5 max-w-xl text-sm leading-7 text-zinc-400">
-              Design a four-person lunar or Martian outpost. Balance power, oxygen, water, food and radiation through thirty mission days.
+            <p className="mt-5 max-w-xl text-sm leading-7 text-zinc-300">
+              Design and command an autonomous 2.5D lunar outpost. Balance power grids, oxygen synthesis, water reclamation, and radiation shielding through 30 mission days.
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
+            <div className="mt-7 flex flex-wrap items-center gap-4">
               <PrimaryButton onClick={goToSelect} testId="start-mission">
-                Start mission <ArrowRight className="h-4 w-4" />
+                Start Mission <ArrowRight className="h-4 w-4" />
               </PrimaryButton>
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                <Clock3 className="h-4 w-4" /> ~5 min mission · deterministic
+              <div className="flex items-center gap-2 font-hud text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                <Clock3 className="h-4 w-4 text-cyan-400" /> ~5 min mission · deterministic
               </div>
             </div>
           </div>
-          <div className="flex flex-col justify-between border-t border-zinc-800 bg-black/20 p-6 md:border-l md:border-t-0 sm:p-8">
+          <div className="flex flex-col justify-between border-t border-zinc-800/80 bg-black/40 p-6 md:border-l md:border-t-0 sm:p-8">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Mission parameters</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">
+                Mission Parameters
+              </p>
               <ul className="mt-4 space-y-3 text-xs text-zinc-300">
-                <li className="flex gap-2"><Check className="h-4 w-4 flex-none text-emerald-400" /> Every system has trade-offs.</li>
-                <li className="flex gap-2"><Check className="h-4 w-4 flex-none text-emerald-400" /> Weather and failures are seeded.</li>
-                <li className="flex gap-2"><Check className="h-4 w-4 flex-none text-emerald-400" /> Debrief traces causes, not just symptoms.</li>
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 flex-none text-emerald-400" /> Real NASA Donki SEP telemetry.
+                </li>
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 flex-none text-emerald-400" /> Dynamic closed-loop life support.
+                </li>
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 flex-none text-emerald-400" /> Multi-tiered causal debrief analysis.
+                </li>
               </ul>
             </div>
-            <div className="mt-8 rounded border border-zinc-800 bg-zinc-950/70 p-4">
-              <p className="text-[9px] uppercase tracking-widest text-zinc-600">Best local run</p>
-              <p className="mt-1 font-hud text-lg font-bold text-cyan-300">
+            <div className="mt-8 rounded-lg border border-zinc-800 bg-zinc-950/80 p-4">
+              <p className="text-[9px] uppercase tracking-widest text-zinc-500">Best local run</p>
+              <p className="mt-1 font-hud text-lg font-bold text-cyan-300 text-glow-cyan">
                 {best ? `${best.days} DAYS · ${best.score} PTS` : 'No missions recorded'}
               </p>
               <p className="text-[10px] text-zinc-500">Stored on this device only</p>
@@ -154,13 +158,19 @@ function SelectionScreen({
   const [tutorialEnabled, setTutorialEnabled] = useState(true);
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-5xl items-center justify-center p-4 sm:p-8">
-      <section className="glass-panel w-full rounded-xl p-5 sm:p-8">
-        <PhaseBadge><Globe2 className="h-3 w-3" /> Mission configuration</PhaseBadge>
-        <h2 className="mt-4 text-2xl font-black uppercase tracking-widest">Choose your outpost</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
+      <section className="glass-panel w-full max-w-4xl rounded-2xl border border-cyan-500/40 p-6 sm:p-8 shadow-[0_0_80px_rgba(0,0,0,0.9)] animate-fade-in-up">
+        <PhaseBadge>
+          <Globe2 className="h-3 w-3" /> Mission Configuration
+        </PhaseBadge>
+        <h2 className="mt-4 text-2xl font-black uppercase tracking-widest text-glow-cyan">
+          Choose Your Outpost
+        </h2>
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           <fieldset>
-            <legend className="mb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Destination</legend>
+            <legend className="mb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+              Destination World
+            </legend>
             <div className="grid grid-cols-2 gap-3">
               {(['mars', 'moon'] as const).map((world) => (
                 <button
@@ -168,16 +178,33 @@ function SelectionScreen({
                   key={world}
                   aria-pressed={scenario === world}
                   onClick={() => onScenario(world)}
-                  className={`min-h-24 rounded-lg border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${scenario === world ? 'border-cyan-500 bg-cyan-950/50' : 'border-zinc-700 bg-zinc-900/60 hover:border-zinc-500'}`}
+                  className={`min-h-24 rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                    scenario === world
+                      ? 'border-cyan-400 bg-cyan-950/60 shadow-[0_0_20px_rgba(6,182,212,0.3)]'
+                      : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-600'
+                  }`}
                 >
-                  <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider">{world === 'mars' ? <Globe2 className="h-4 w-4 text-orange-300" /> : <Moon className="h-4 w-4 text-sky-300" />}{world}</span>
-                  <span className="mt-2 block text-[10px] leading-relaxed text-zinc-500">{world === 'mars' ? 'Dust storms, delayed comms, solar variability.' : 'Long lunar nights, stored-power challenge.'}</span>
+                  <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+                    {world === 'mars' ? (
+                      <Globe2 className="h-4 w-4 text-orange-400" />
+                    ) : (
+                      <Moon className="h-4 w-4 text-cyan-300" />
+                    )}
+                    {world}
+                  </span>
+                  <span className="mt-2 block text-[10px] leading-relaxed text-zinc-400">
+                    {world === 'mars'
+                      ? 'Dust storms, delayed comms, variable solar radiation.'
+                      : 'Long lunar nights, vacuum thermal swings, stored power.'}
+                  </span>
                 </button>
               ))}
             </div>
           </fieldset>
           <fieldset>
-            <legend className="mb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Difficulty / detail</legend>
+            <legend className="mb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+              Difficulty / Flight Systems
+            </legend>
             <div className="grid grid-cols-2 gap-3">
               {(['cadet', 'engineer'] as const).map((level) => (
                 <button
@@ -185,20 +212,31 @@ function SelectionScreen({
                   key={level}
                   aria-pressed={mode === level}
                   onClick={() => onMode(level)}
-                  className={`min-h-24 rounded-lg border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${mode === level ? 'border-cyan-500 bg-cyan-950/50' : 'border-zinc-700 bg-zinc-900/60 hover:border-zinc-500'}`}
+                  className={`min-h-24 rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                    mode === level
+                      ? 'border-cyan-400 bg-cyan-950/60 shadow-[0_0_20px_rgba(6,182,212,0.3)]'
+                      : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-600'
+                  }`}
                 >
                   <span className="text-sm font-bold uppercase tracking-wider">{level}</span>
-                  <span className="mt-2 block text-[10px] leading-relaxed text-zinc-500">{level === 'cadet' ? 'Plain-language gauges and guidance.' : 'Full systems data and live controls.'}</span>
+                  <span className="mt-2 block text-[10px] leading-relaxed text-zinc-400">
+                    {level === 'cadet'
+                      ? 'Streamlined gauges, advisory warnings and assistance.'
+                      : 'Full engineering telemetry, radiation exposure, live priority bus.'}
+                  </span>
                 </button>
               ))}
             </div>
           </fieldset>
         </div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded border border-zinc-800 bg-zinc-950/50 p-4">
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
           <div>
-            <p className="flex items-center gap-2 text-xs font-bold"><Sun className="h-4 w-4 text-amber-300" /> Real Sun Mode</p>
-            <p className="mt-1 text-[10px] text-zinc-500">
-              Replay historical NASA DONKI SEP records as training scenarios. {sunEventCount} records available. {sunDataStatus}
+            <p className="flex items-center gap-2 text-xs font-bold text-zinc-200">
+              <Sun className="h-4 w-4 text-amber-400" /> Real Sun Mode (NASA DONKI SEP)
+            </p>
+            <p className="mt-1 text-[10px] text-zinc-400">
+              Replay historical Solar Energetic Particle records. {sunEventCount} records available. {sunDataStatus}
             </p>
           </div>
           <button
@@ -206,27 +244,59 @@ function SelectionScreen({
             role="switch"
             aria-checked={realSunMode}
             onClick={() => onRealSunMode(!realSunMode)}
-            className={`relative h-8 w-14 rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${realSunMode ? 'border-cyan-500 bg-cyan-950' : 'border-zinc-700 bg-zinc-800'}`}
+            className={`relative h-8 w-14 rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+              realSunMode ? 'border-cyan-400 bg-cyan-950 shadow-[0_0_12px_rgba(6,182,212,0.5)]' : 'border-zinc-700 bg-zinc-800'
+            }`}
           >
-            <span className={`absolute top-1 h-5 w-5 rounded-full transition-all ${realSunMode ? 'left-7 bg-cyan-300' : 'left-1 bg-zinc-400'}`} />
+            <span
+              className={`absolute top-1 h-5 w-5 rounded-full transition-all ${
+                realSunMode ? 'left-7 bg-cyan-300' : 'left-1 bg-zinc-400'
+              }`}
+            />
             <span className="sr-only">Toggle Real Sun Mode</span>
           </button>
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <label className="flex min-h-11 items-center gap-3 text-xs text-zinc-400">
-            <input type="checkbox" checked={tutorialEnabled} onChange={(event) => setTutorialEnabled(event.target.checked)} className="h-4 w-4 accent-cyan-500" />
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <label className="flex min-h-10 items-center gap-3 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={tutorialEnabled}
+              onChange={(event) => setTutorialEnabled(event.target.checked)}
+              className="h-4 w-4 accent-cyan-500 rounded"
+            />
             Include interactive 90-second briefing
           </label>
-          <label className="flex min-h-11 items-center gap-2 text-xs text-zinc-400">
-            <input type="checkbox" checked={soundEnabled} onChange={(event) => onSoundEnabled(event.target.checked)} className="h-4 w-4 accent-cyan-500" />
-            Sound alerts
+          <label className="flex min-h-10 items-center gap-2 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={soundEnabled}
+              onChange={(event) => onSoundEnabled(event.target.checked)}
+              className="h-4 w-4 accent-cyan-500 rounded"
+            />
+            Audio alerts enabled
           </label>
         </div>
-        {storageWarning && <p role="status" className="mt-2 text-[10px] text-amber-300">{storageWarning}</p>}
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <button type="button" onClick={() => setTutorialEnabled(true)} className="min-h-11 rounded px-4 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400">Reset briefing</button>
-          <PrimaryButton onClick={() => (tutorialEnabled ? enterTutorial() : startMission())} testId="continue-selection">
-            Continue <ChevronRight className="h-4 w-4" />
+
+        {storageWarning && (
+          <p role="status" className="mt-2 text-[10px] text-amber-300">
+            {storageWarning}
+          </p>
+        )}
+
+        <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-zinc-800/80 pt-4">
+          <button
+            type="button"
+            onClick={() => setTutorialEnabled(true)}
+            className="min-h-11 rounded px-4 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          >
+            Reset briefing
+          </button>
+          <PrimaryButton
+            onClick={() => (tutorialEnabled ? enterTutorial() : startMission())}
+            testId="continue-selection"
+          >
+            Deploy Base <ChevronRight className="h-4 w-4" />
           </PrimaryButton>
         </div>
       </section>
@@ -236,22 +306,22 @@ function SelectionScreen({
 
 const TUTORIAL_QUESTIONS = [
   {
-    prompt: 'A power shortage is coming. Which system should keep its power priority?',
+    prompt: 'A power shortage is coming. Which system should keep highest power priority?',
     options: ['Life-support oxygen systems', 'Decorative lighting'],
     answer: 0,
-    explanation: 'Life support takes priority over non-essential loads.',
+    explanation: 'Life support takes absolute priority over auxiliary systems.',
   },
   {
-    prompt: 'A lunar outpost has two weeks without sunlight. What closes the gap?',
-    options: ['More solar panels alone', 'A reactor and stored power'],
+    prompt: 'A lunar outpost experiences two weeks of total night. What closes the gap?',
+    options: ['More solar panels alone', 'A reactor and stored battery power'],
     answer: 1,
-    explanation: 'Solar arrays cannot generate during lunar night; firm generation and storage help bridge it.',
+    explanation: 'Solar arrays cannot generate during lunar night; steady generation and batteries bridge the window.',
   },
   {
-    prompt: 'A particle-event warning arrives. What should the crew do?',
+    prompt: 'A solar particle event warning arrives. What immediate command protects crew?',
     options: ['Order the crew into the shelter', 'Wait until the event ends'],
     answer: 0,
-    explanation: 'The warning window is an actionable time to move to protected shelter.',
+    explanation: 'The warning window gives actionable time to order the crew into reinforced storm shelter.',
   },
 ];
 
@@ -280,171 +350,130 @@ function TutorialScreen({ onTutorialSeen }: { onTutorialSeen: () => void }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-3xl items-center justify-center p-4 sm:p-8">
-      <section className="glass-panel w-full rounded-xl p-5 sm:p-8">
-        <PhaseBadge><BookOpen className="h-3 w-3" /> Flight systems briefing · {questionIndex + 1} of {TUTORIAL_QUESTIONS.length}</PhaseBadge>
-        <div className="mt-5 h-1 overflow-hidden rounded bg-zinc-800"><div className="h-full bg-cyan-400 transition-all" style={{ width: `${((questionIndex + 1) / TUTORIAL_QUESTIONS.length) * 100}%` }} /></div>
-        <h2 className="mt-6 text-xl font-black uppercase tracking-wider">Mission survival is a systems problem</h2>
-        <p className="mt-4 rounded border border-zinc-800 bg-zinc-950/60 p-4 text-sm leading-relaxed text-zinc-200">{question.prompt}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
+      <section className="glass-panel w-full max-w-3xl rounded-2xl border border-cyan-500/40 p-6 sm:p-8 shadow-[0_0_80px_rgba(0,0,0,0.9)] animate-fade-in-up">
+        <PhaseBadge>
+          <BookOpen className="h-3 w-3" /> Flight Briefing · {questionIndex + 1} of{' '}
+          {TUTORIAL_QUESTIONS.length}
+        </PhaseBadge>
+        <div className="mt-4 h-1 overflow-hidden rounded bg-zinc-800">
+          <div
+            className="h-full bg-cyan-400 transition-all shadow-[0_0_10px_rgba(6,182,212,0.8)]"
+            style={{ width: `${((questionIndex + 1) / TUTORIAL_QUESTIONS.length) * 100}%` }}
+          />
+        </div>
+        <h2 className="mt-5 text-xl font-black uppercase tracking-wider text-glow-cyan">
+          Mission Survival Systems
+        </h2>
+        <p className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 text-sm leading-relaxed text-zinc-200">
+          {question.prompt}
+        </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {question.options.map((option, index) => (
-            <button type="button" key={option} onClick={() => answer(index)} className="min-h-14 rounded border border-zinc-700 bg-zinc-900 px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:border-cyan-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400">{option}</button>
+            <button
+              type="button"
+              key={option}
+              onClick={() => answer(index)}
+              className="min-h-14 rounded-xl border border-zinc-700 bg-zinc-900/80 px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:border-cyan-400 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+            >
+              {option}
+            </button>
           ))}
         </div>
-        <p aria-live="polite" className={`mt-4 min-h-6 text-xs ${feedback.startsWith('Not') ? 'text-amber-300' : 'text-emerald-300'}`}>{feedback}</p>
-        <div className="mt-5 flex justify-end">
-          <button type="button" onClick={() => { onTutorialSeen(); skipTutorial(); }} className="min-h-11 px-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400">Skip briefing</button>
+        <p
+          aria-live="polite"
+          className={`mt-4 min-h-6 text-xs font-semibold ${
+            feedback.startsWith('Not') ? 'text-amber-300' : 'text-emerald-300'
+          }`}
+        >
+          {feedback}
+        </p>
+        <div className="mt-5 flex justify-end border-t border-zinc-800/80 pt-3">
+          <button
+            type="button"
+            onClick={() => {
+              onTutorialSeen();
+              skipTutorial();
+            }}
+            className="min-h-10 px-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          >
+            Skip briefing
+          </button>
         </div>
       </section>
-    </div>
-  );
-}
-
-function BuildCard({ module }: { module: OutpostModule }) {
-  const buildModule = useGameStore((state) => state.buildModule);
-  const resources = useGameStore((state) => state.resources);
-  const alreadyBuilt = useGameStore((state) => state.builtModules.filter((item) => item.moduleType === module.moduleType).length);
-  const affordable = resources.massBudget >= module.mass && resources.creditBudget >= module.costCredits;
-  return (
-    <article className="rounded-lg border border-zinc-800 bg-zinc-900/75 p-3 transition hover:border-zinc-600">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <h3 className="text-xs font-bold text-zinc-100">{module.name}</h3>
-          <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">{module.description}</p>
-        </div>
-        <details className="relative flex-none">
-          <summary
-            title={`Why ${module.name}?`}
-            aria-label={`Scientific note for ${module.name}`}
-            className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded text-zinc-500 hover:bg-zinc-800 hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-          >
-            <CircleHelp className="h-4 w-4" />
-          </summary>
-          <p className="absolute right-0 top-10 z-20 w-64 rounded border border-cyan-900 bg-zinc-950 p-3 text-[10px] leading-relaxed text-zinc-300 shadow-xl">
-            {module.scientificNote}
-          </p>
-        </details>
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="font-hud text-[9px] text-zinc-500">MASS {module.mass} · CR {module.costCredits}{alreadyBuilt ? ` · ×${alreadyBuilt}` : ''}</span>
-        <button
-          type="button"
-          onClick={() => buildModule(module.id)}
-          disabled={!affordable}
-          aria-label={`Deploy ${module.name}`}
-          className="inline-flex min-h-10 items-center gap-1 rounded border border-zinc-700 px-3 text-[10px] font-bold uppercase tracking-wider text-zinc-200 hover:border-cyan-600 hover:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:cursor-not-allowed disabled:opacity-35"
-        ><Plus className="h-3.5 w-3.5" /> Deploy</button>
-      </div>
-    </article>
-  );
-}
-
-function DesignScreen() {
-  const state = useGameStore();
-  const forecast = forecastMission(state);
-  const forecastText = forecast.survives ? '30+ days projected' : `${forecast.days} days projected`;
-
-  return (
-    <div className="mx-auto w-full max-w-7xl p-3 sm:p-6">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div><PhaseBadge><Wrench className="h-3 w-3" /> Design phase · Day 0</PhaseBadge><h2 className="mt-2 text-xl font-black uppercase tracking-widest">Build your outpost</h2><p className="mt-1 text-xs text-zinc-500">Construction is limited by mass and credit budgets. No cost-free modules.</p></div>
-        <div className="grid grid-cols-2 gap-2 font-hud text-[10px]">
-          <div className="rounded border border-zinc-800 bg-zinc-900 px-3 py-2"><span className="text-zinc-500">MASS</span><strong className="ml-2 text-zinc-200">{formatResource(state.resources.massBudget)} kg</strong></div>
-          <div className="rounded border border-zinc-800 bg-zinc-900 px-3 py-2"><span className="text-zinc-500">CREDITS</span><strong className="ml-2 text-zinc-200">{formatResource(state.resources.creditBudget)}</strong></div>
-        </div>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="grid content-start gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {AVAILABLE_MODULES.map((module) => <BuildCard key={module.id} module={module} />)}
-        </div>
-        <aside className="flex flex-col gap-3">
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Live survival forecast</p>
-            <p className={`mt-2 text-2xl font-black ${forecast.survives ? 'text-emerald-300' : 'text-amber-300'}`}>{forecastText}</p>
-            <p className="mt-2 text-[10px] leading-relaxed text-zinc-500">
-              {forecast.survives ? 'Current design survives the objective in the seeded forecast.' : forecast.reason || 'Deploy life support and generation before the crew begins consuming supplies.'}
-            </p>
-            <p className="mt-3 border-t border-zinc-800 pt-3 text-[9px] text-zinc-600">Forecast runs the deterministic engine on a separate copy of this design.</p>
-          </div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Deployed systems</p>
-            <div className="mt-2 space-y-1.5">
-              {state.builtModules.length === 0 ? <p className="text-xs text-zinc-600">None yet.</p> : state.builtModules.map((module) => <div key={module.id} className="flex justify-between gap-2 text-[10px]"><span className="text-zinc-300">{module.name}</span><span className="text-zinc-600">{module.mass} kg</span></div>)}
-            </div>
-          </div>
-          {state.inputError && <p role="alert" className="rounded border border-red-900 bg-red-950/40 p-3 text-xs text-red-300">{state.inputError}</p>}
-          <PrimaryButton onClick={state.startOperations} testId="start-operations"><Play className="h-4 w-4 fill-current" /> Lock design & operate</PrimaryButton>
-        </aside>
-      </div>
     </div>
   );
 }
 
 function CommsPanel() {
   const logs = useGameStore((state) => state.logs);
+  const [collapsed, setCollapsed] = useState(false);
   const visibleLogs = logs.slice(-60).reverse();
+
   return (
-    <aside className="flex max-h-40 flex-none flex-col border-b border-zinc-800 bg-zinc-950/90 p-3 backdrop-blur-md md:max-h-none md:w-56 md:border-b-0 md:border-r xl:w-64">
-      <div className="mb-2 flex items-center justify-between"><div><h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Comms link</h2><p className="mt-1 text-[9px] uppercase tracking-widest text-zinc-600">Mission log · live</p></div><span className="h-2 w-2 rounded-full bg-emerald-500" /></div>
-      <div className="min-h-14 flex-1 space-y-1 overflow-y-auto rounded border border-zinc-800 bg-black/40 p-1.5 font-hud text-[9px]" aria-live="polite">
-        {visibleLogs.map((log, index) => <div key={`${logs.length - index}-${log}`} className={`rounded px-2 py-1.5 leading-relaxed ${isCriticalLog(log) ? 'border border-red-900/70 bg-red-950/50 text-red-300' : log.includes('EVENT') || log.includes('WARNING') ? 'border border-amber-900/50 bg-amber-950/20 text-amber-300' : log.includes('DEPLOYED') ? 'text-cyan-300' : 'border-b border-zinc-800/60 text-zinc-400'}`}>{log}</div>)}
+    <aside
+      className={`glass-hud fixed left-3 top-16 z-30 flex flex-col rounded-xl border border-zinc-700/60 transition-all duration-300 ${
+        collapsed ? 'h-12 w-48' : 'w-64 sm:w-72 max-h-[calc(100vh-5.5rem)]'
+      }`}
+      aria-label="Mission Log & Transmissions"
+    >
+      <div className="flex items-center justify-between border-b border-zinc-800/80 px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          </span>
+          <div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-zinc-100">
+              Comms Link
+            </h2>
+            <p className="text-[8px] font-hud uppercase tracking-widest text-zinc-500">
+              Telemetry · Live
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-800 hover:text-cyan-300"
+          aria-label={collapsed ? 'Expand comms log' : 'Collapse comms log'}
+        >
+          {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+        </button>
       </div>
-      <p className="mt-2 text-right text-[9px] text-zinc-600">{logs.length} transmissions</p>
+
+      {!collapsed && (
+        <div className="flex min-h-0 flex-1 flex-col p-2.5">
+          <div
+            className="min-h-16 flex-1 space-y-1 overflow-y-auto rounded-lg border border-zinc-800/80 bg-black/60 p-2 font-hud text-[9px]"
+            aria-live="polite"
+          >
+            {visibleLogs.map((log, index) => (
+              <div
+                key={`${logs.length - index}-${log}`}
+                className={`rounded px-2 py-1.5 leading-relaxed ${
+                  isCriticalLog(log)
+                    ? 'border border-red-800/80 bg-red-950/60 text-red-300'
+                    : log.includes('EVENT') || log.includes('WARNING')
+                      ? 'border border-amber-800/60 bg-amber-950/40 text-amber-300'
+                      : log.includes('DEPLOYED')
+                        ? 'text-cyan-300'
+                        : 'border-b border-zinc-900 text-zinc-400'
+                }`}
+              >
+                {log}
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-right text-[8px] font-hud text-zinc-500">
+            {logs.length} transmissions logged
+          </p>
+        </div>
+      )}
     </aside>
   );
 }
 
-function EventBanner() {
-  const events = useGameStore((state) => state.activeEvents);
-  if (!events.length) return null;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {events.map((event) => <div key={event.id} role="status" className="flex items-center gap-2 rounded border border-amber-800/70 bg-amber-950/40 px-3 py-2 text-[10px] font-bold text-amber-200">
-        <AlertTriangle className="h-4 w-4" />
-        <span>{event.warned ? 'WARNING' : 'ACTIVE'}: {event.name}{event.sourceDate ? ` · ${event.sourceDate} · ${event.eventClass}` : ''}</span>
-      </div>)}
-    </div>
-  );
-}
-
-function OperationsControls() {
-  return <TimeControls />;
-}
-function OperationsScreen() {
-  const state = useGameStore();
-  const eventWarning = state.activeEvents.some((event) => event.warned);
-  return (
-    <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-      <CommsPanel />
-      <section
-        className="relative min-h-0 min-w-0 flex-1 overflow-y-auto p-3 sm:p-5"
-        aria-label="Outpost operations grid"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(63, 63, 70, 0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(63, 63, 70, 0.12) 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-        }}
-      >
-        <div className="mx-auto flex min-h-full max-w-5xl flex-col gap-3">
-          <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <PhaseBadge><Activity className="h-3 w-3" /> Operations · {state.scenario}</PhaseBadge>
-              <h2 className="mt-2 text-lg font-black uppercase tracking-widest">Surface systems</h2>
-            </div>
-            <EventBanner />
-          </div>
-          {eventWarning && (
-            <p className="rounded border border-amber-900 bg-amber-950/30 p-2 text-[10px] text-amber-200">
-              Critical event warning: simulation auto-paused. Review the event and choose an action before resuming.
-            </p>
-          )}
-          <Grid />
-          <ResourceFlow />
-          <AdvisorChat />
-        </div>
-      </section>
-    </div>
-  );
-}
 function causeChain(causes: CauseLog[]) {
   const failure = causes.findLast((cause) => cause.system === 'mission');
   if (!failure) return [];
@@ -461,11 +490,25 @@ function causeChain(causes: CauseLog[]) {
 function calculateScore() {
   const state = useGameStore.getState();
   const survival = (state.daysPassed / MISSION_DURATION_DAYS) * 60;
-  const safety = Math.max(0, Math.min(state.resources.oxygen / 120, state.resources.power / state.resourceCaps.power, state.resources.water / 120, state.resources.food / 120, 1 - state.resources.radiationDose / state.resourceCaps.radiationDose)) * 25;
+  const safety =
+    Math.max(
+      0,
+      Math.min(
+        state.resources.oxygen / 120,
+        state.resources.power / state.resourceCaps.power,
+        state.resources.water / 120,
+        state.resources.food / 120,
+        1 - state.resources.radiationDose / state.resourceCaps.radiationDose,
+      ),
+    ) * 25;
   const usedMass = state.resourceCaps.massBudget - state.resources.massBudget;
   const efficiency = Math.max(0, 15 * (1 - usedMass / state.resourceCaps.massBudget));
   const score = Math.round(survival + safety + efficiency);
-  return { score, grade: score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 65 ? 'C' : score >= 50 ? 'D' : 'E' };
+  return {
+    score,
+    grade:
+      score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 65 ? 'C' : score >= 50 ? 'D' : 'E',
+  };
 }
 
 function MissionReport({ success }: { success: boolean }) {
@@ -476,7 +519,9 @@ function MissionReport({ success }: { success: boolean }) {
   const [copyMessage, setCopyMessage] = useState('');
   const score = calculateScore();
   const chain = causeChain(state.causeLog);
-  const actions: Action[] = state.actionLog.filter((entry) => entry.status === 'applied').map((entry) => entry.action);
+  const actions: Action[] = state.actionLog
+    .filter((entry) => entry.status === 'applied')
+    .map((entry) => entry.action);
 
   useEffect(() => {
     const warning = saveBestRun({ days: state.daysPassed, score: score.score });
@@ -500,37 +545,120 @@ function MissionReport({ success }: { success: boolean }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-4xl items-center justify-center p-4 sm:p-8">
-      <section className="glass-panel w-full overflow-hidden rounded-xl">
-        <div className={`border-b p-5 sm:p-7 ${success ? 'border-emerald-900 bg-emerald-950/30' : 'border-red-900 bg-red-950/30'}`}>
-          <PhaseBadge>{success ? 'Mission complete' : 'Mission terminated'} · Day {state.daysPassed}</PhaseBadge>
-          <h2 className="mt-3 text-2xl font-black uppercase tracking-widest">{success ? 'Outpost sustained' : 'Mission debrief'}</h2>
-          <p className="mt-2 text-sm text-zinc-300">{success ? 'The crew completed the 30-day mission.' : state.debriefReason}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/60 overflow-y-auto">
+      <section className="glass-panel w-full max-w-4xl overflow-hidden rounded-2xl border border-cyan-500/40 shadow-[0_0_80px_rgba(0,0,0,0.9)] animate-fade-in-up my-auto">
+        <div
+          className={`border-b p-5 sm:p-7 ${
+            success
+              ? 'border-emerald-900 bg-emerald-950/40'
+              : 'border-red-900 bg-red-950/40'
+          }`}
+        >
+          <PhaseBadge>
+            {success ? 'Mission complete' : 'Mission terminated'} · Day {state.daysPassed}
+          </PhaseBadge>
+          <h2 className="mt-3 text-2xl font-black uppercase tracking-widest text-glow-cyan">
+            {success ? 'Outpost sustained' : 'Mission debrief'}
+          </h2>
+          <p className="mt-2 text-sm text-zinc-300">
+            {success ? 'The crew completed the 30-day mission.' : state.debriefReason}
+          </p>
         </div>
         <div className="grid gap-5 p-5 md:grid-cols-[0.8fr_1.2fr] sm:p-7">
           <div>
-            {success && <div className="rounded-lg border border-zinc-700 bg-zinc-950/70 p-4 text-center"><p className="text-[9px] uppercase tracking-widest text-zinc-500">Mission score · grade</p><p className="mt-2 text-4xl font-black text-cyan-300">{score.score} <span className="text-2xl">{score.grade}</span></p></div>}
-            <h3 className="mt-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Root cause timeline</h3>
+            {success && (
+              <div className="rounded-xl border border-zinc-700 bg-zinc-950/80 p-4 text-center">
+                <p className="text-[9px] uppercase tracking-widest text-zinc-500">
+                  Mission score · grade
+                </p>
+                <p className="mt-2 text-4xl font-black text-cyan-300 text-glow-cyan">
+                  {score.score} <span className="text-2xl">{score.grade}</span>
+                </p>
+              </div>
+            )}
+            <h3 className="mt-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+              Root cause timeline
+            </h3>
             <ol className="mt-3 space-y-2 border-l border-zinc-700 pl-4">
-              {chain.length > 0 ? chain.map((cause) => <li key={cause.id} className="relative text-[10px] leading-relaxed text-zinc-300"><span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full border border-zinc-950 bg-amber-400" /><span className="font-hud text-cyan-300">Day {cause.day} · {cause.system}</span><br />{cause.reason}</li>) : <li className="text-xs text-zinc-500">No failure chain. Review the daily comms log.</li>}
+              {chain.length > 0 ? (
+                chain.map((cause) => (
+                  <li key={cause.id} className="relative text-[10px] leading-relaxed text-zinc-300">
+                    <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full border border-zinc-950 bg-amber-400" />
+                    <span className="font-hud text-cyan-300">
+                      Day {cause.day} · {cause.system}
+                    </span>
+                    <br />
+                    {cause.reason}
+                  </li>
+                ))
+              ) : (
+                <li className="text-xs text-zinc-500">
+                  No failure chain. Review the daily comms log.
+                </li>
+              )}
             </ol>
-            {!success && <div className="mt-4 rounded border border-cyan-900 bg-cyan-950/30 p-3"><p className="text-[9px] font-bold uppercase tracking-widest text-cyan-300">What might have saved the mission?</p><p className="mt-1 text-[10px] leading-relaxed text-zinc-300">{chain.some((cause) => cause.system === 'power') ? 'Add redundant power generation or battery storage before starting the lunar night or dust-storm window.' : chain.some((cause) => cause.system === 'radiationDose') ? 'Deploy regolith shielding and order the crew into the storm shelter when the warning arrives.' : 'Increase the relevant life-support reserve and add a production/recycling module before operations.'}</p></div>}
-            <div className="mt-4 rounded border border-zinc-800 bg-zinc-950/60 p-3"><p className="text-[9px] uppercase tracking-widest text-zinc-500">Reflection</p><p className="mt-1 text-[11px] text-zinc-300">Which system would you redesign first, and what would that choice cost?</p></div>
+            {!success && (
+              <div className="mt-4 rounded-xl border border-cyan-900 bg-cyan-950/40 p-3">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-cyan-300">
+                  What might have saved the mission?
+                </p>
+                <p className="mt-1 text-[10px] leading-relaxed text-zinc-300">
+                  {chain.some((cause) => cause.system === 'power')
+                    ? 'Add redundant power generation or battery storage before starting the lunar night or dust-storm window.'
+                    : chain.some((cause) => cause.system === 'radiationDose')
+                      ? 'Deploy regolith shielding and order the crew into the storm shelter when the warning arrives.'
+                      : 'Increase the relevant life-support reserve and add a production/recycling module before operations.'}
+                </p>
+              </div>
+            )}
           </div>
           <div>
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Complete mission timeline</h3>
-            <div className="mt-3 max-h-72 space-y-1 overflow-y-auto rounded border border-zinc-800 bg-black/30 p-2 font-hud text-[9px]">
-              {state.logs.map((log, index) => <p key={`${index}-${log}`} className={`border-b border-zinc-800/70 py-1 ${isCriticalLog(log) ? 'text-red-300' : log.includes('EVENT') ? 'text-amber-300' : 'text-zinc-400'}`}>{log}</p>)}
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+              Complete mission timeline
+            </h3>
+            <div className="mt-3 max-h-72 space-y-1 overflow-y-auto rounded-xl border border-zinc-800 bg-black/40 p-3 font-hud text-[9px]">
+              {state.logs.map((log, index) => (
+                <p
+                  key={`${index}-${log}`}
+                  className={`border-b border-zinc-800/70 py-1 ${
+                    isCriticalLog(log)
+                      ? 'text-red-300'
+                      : log.includes('EVENT')
+                        ? 'text-amber-300'
+                        : 'text-zinc-400'
+                  }`}
+                >
+                  {log}
+                </p>
+              ))}
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 p-4 sm:px-7">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800/80 p-4 sm:px-7">
           <div className="flex flex-wrap gap-2">
-            <PrimaryButton onClick={retry}><RefreshCw className="h-4 w-4" /> Retry mission</PrimaryButton>
-            <button type="button" onClick={shareRun} className="min-h-11 rounded border border-zinc-700 px-4 text-[10px] font-bold uppercase tracking-wider text-zinc-200 hover:border-cyan-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400">Share replay</button>
+            <PrimaryButton onClick={retry}>
+              <RefreshCw className="h-4 w-4" /> Retry mission
+            </PrimaryButton>
+            <button
+              type="button"
+              onClick={shareRun}
+              className="min-h-11 rounded-lg border border-zinc-700 bg-zinc-900/60 px-4 text-[10px] font-bold uppercase tracking-wider text-zinc-200 hover:border-cyan-400 hover:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+            >
+              Share replay
+            </button>
           </div>
-          <p aria-live="polite" className="text-[10px] text-zinc-400">{copyMessage || state.inputError}</p>
-          {shareLink && <input aria-label="Replay link" readOnly value={shareLink} onFocus={(event) => event.currentTarget.select()} className="w-full rounded border border-zinc-700 bg-zinc-950 p-2 text-[10px] text-cyan-200" />}
+          <p aria-live="polite" className="text-[10px] text-zinc-400">
+            {copyMessage || state.inputError}
+          </p>
+          {shareLink && (
+            <input
+              aria-label="Replay link"
+              readOnly
+              value={shareLink}
+              onFocus={(event) => event.currentTarget.select()}
+              className="w-full rounded border border-zinc-700 bg-zinc-950 p-2 text-[10px] text-cyan-200"
+            />
+          )}
         </div>
       </section>
     </div>
@@ -552,13 +680,24 @@ function App() {
   const realSunMode = useGameStore((state) => state.realSunMode);
   const togglePause = useGameStore((state) => state.togglePause);
   const setSunEvents = useGameStore((state) => state.setSunEvents);
+
   const [localSettingsState, setLocalSettingsState] = useState(loadLocalSettings);
-  const [sunDataStatus, setSunDataStatus] = useState('Bundled archive ready; NASA refresh runs when Real Sun Mode is enabled.');
-  const [demoMode] = useState(() => new URLSearchParams(window.location.search).get('demo') === '1');
+  const [sunDataStatus, setSunDataStatus] = useState(
+    'Bundled archive ready; NASA refresh runs when Real Sun Mode is enabled.',
+  );
+  const [demoMode] = useState(
+    () => new URLSearchParams(window.location.search).get('demo') === '1',
+  );
+
+  // Tactical overlay toggles for AI advisor and resource conduits
+  const [showAdvisor, setShowAdvisor] = useState(false);
+  const [showResourceFlow, setShowResourceFlow] = useState(false);
+
   const preferencesInitialized = useRef(false);
   const replayHandled = useRef(false);
   const previousAlarmTokens = useRef('');
   const audioContext = useRef<AudioContext | null>(null);
+
   const alertTokens = useGameStore((state) =>
     state.activeEvents
       .filter((event) => event.warned || event.active)
@@ -590,18 +729,21 @@ function App() {
   useEffect(() => {
     if (!realSunMode) return undefined;
     let active = true;
-    void loadSunEventsFromDonki().then((result) => {
-      if (!active) return;
-      setSunEvents(result.events);
-      setSunDataStatus(
-        result.warning ||
-          `Loaded ${result.events.length} recent records from NASA DONKI.`,
-      );
-    }).catch((error: unknown) => {
-      if (!active) return;
-      const message = error instanceof Error ? error.message : 'Unexpected DONKI loading error.';
-      setSunDataStatus(`NASA DONKI refresh failed: ${message}. Using the bundled archive.`);
-    });
+    void loadSunEventsFromDonki()
+      .then((result) => {
+        if (!active) return;
+        setSunEvents(result.events);
+        setSunDataStatus(
+          result.warning ||
+            `Loaded ${result.events.length} recent records from NASA DONKI.`,
+        );
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        const message =
+          error instanceof Error ? error.message : 'Unexpected DONKI loading error.';
+        setSunDataStatus(`NASA DONKI refresh failed: ${message}. Using bundled archive.`);
+      });
     return () => {
       active = false;
     };
@@ -633,10 +775,14 @@ function App() {
       oscillator.start(startAt);
       oscillator.stop(startAt + 0.33);
       void context.resume().catch(() => {
-        setInputError('Sound alert playback was blocked by the browser. Enable sound from the mission settings after interacting with the page.');
+        setInputError(
+          'Sound alert blocked by browser. Enable sound from mission settings after interacting.',
+        );
       });
     } catch (error) {
-      setInputError(error instanceof Error ? `Sound alert unavailable: ${error.message}` : 'Sound alert unavailable.');
+      setInputError(
+        error instanceof Error ? `Sound alert unavailable: ${error.message}` : 'Sound alert unavailable.',
+      );
     }
   }, [alertTokens, localSettingsState.settings.soundEnabled, setInputError]);
 
@@ -679,10 +825,14 @@ function App() {
       try {
         if (!audioContext.current) audioContext.current = new window.AudioContext();
         void audioContext.current.resume().catch(() => {
-          setInputError('Sound alert playback was blocked by the browser. Enable sound after interacting with the page.');
+          setInputError(
+            'Sound playback blocked by browser. Enable sound after interacting.',
+          );
         });
       } catch (error) {
-        setInputError(error instanceof Error ? `Sound alert unavailable: ${error.message}` : 'Sound alert unavailable.');
+        setInputError(
+          error instanceof Error ? `Sound alert unavailable: ${error.message}` : 'Sound alert unavailable.',
+        );
       }
     }
     updateLocalSettings({ soundEnabled: enabled });
@@ -714,19 +864,136 @@ function App() {
     }
   }, [loadReplay, setInputError]);
 
-  const topPhase = appPhase === 'operate' || appPhase === 'debrief' || appPhase === 'result';
   return (
-    <div className="scanlines flex h-[100dvh] min-h-[560px] w-screen flex-col overflow-hidden bg-zinc-950 text-zinc-50">
-      {topPhase && <ResourceBar />}
-      {appPhase === 'title' && <main className="min-h-0 flex-1 overflow-y-auto"><TitleScreen /></main>}
-      {appPhase === 'select' && <main className="min-h-0 flex-1 overflow-y-auto"><SelectionScreen onScenario={updateScenario} onMode={updateMode} onRealSunMode={updateRealSunMode} onSoundEnabled={updateSound} soundEnabled={localSettingsState.settings.soundEnabled} storageWarning={localSettingsState.warning} sunDataStatus={sunDataStatus} /></main>}
-      {appPhase === 'tutorial' && <main className="min-h-0 flex-1 overflow-y-auto"><TutorialScreen onTutorialSeen={markTutorialSeen} /></main>}
-      {appPhase === 'design' && <main className="min-h-0 flex-1 overflow-y-auto"><DesignScreen /></main>}
-      {appPhase === 'operate' && <OperationsScreen />}
-      {appPhase === 'debrief' && <main className="min-h-0 flex-1 overflow-y-auto"><MissionReport success={false} /></main>}
-      {appPhase === 'result' && <main className="min-h-0 flex-1 overflow-y-auto"><MissionReport success /></main>}
-      {inputError && appPhase !== 'design' && appPhase !== 'operate' && <div role="alert" className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-lg rounded border border-red-900 bg-red-950 p-3 text-xs text-red-200">{inputError}</div>}
-      {appPhase === 'operate' && <OperationsControls />}
+    <div className="relative h-[100dvh] w-screen overflow-hidden bg-black text-zinc-50 select-none">
+      {/* LAYER 1: Full-Bleed High-Quality Lunar/Space Environment Background */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-1000 scale-105"
+        style={{
+          backgroundImage:
+            'url("https://images.unsplash.com/photo-1538370965046-79c0d6907d47?auto=format&fit=crop&w=2560&q=80")',
+        }}
+      >
+        {/* Subtle Lunar Dark Regolith Horizon Tint */}
+        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/70 to-transparent" />
+      </div>
+
+      {/* Atmospheric Radial Vignette Overlay to focus eye on the base */}
+      <div className="vignette-radial absolute inset-0 z-10" />
+
+      {/* CRT Scanline Overlay */}
+      <div className="scanline-overlay absolute inset-0 z-20" />
+
+      {/* LAYER 2 & 3: The 2.5D Isometric Outpost Base Grid (Absolute Center) */}
+      <main className="absolute inset-0 z-20 flex items-center justify-center overflow-auto px-4 py-16">
+        <Grid />
+      </main>
+
+      {/* LAYER 4: The Edge-Aligned Futuristic HUD */}
+      {/* Top Edge: Telemetry ResourceBar */}
+      <ResourceBar />
+
+      {/* Left Edge: Comms Transmissions Log */}
+      <CommsPanel />
+
+      {/* Right Edge: Blueprint Construction Menu */}
+      <BuildMenu />
+
+      {/* Floating Tactical Quick-Actions Bar (Bottom-Right / Floating pill) */}
+      <div className="fixed bottom-14 right-4 z-40 hidden sm:flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setShowAdvisor(!showAdvisor)}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-md transition-all ${
+            showAdvisor
+              ? 'border-cyan-400 bg-cyan-950/80 text-cyan-200 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
+              : 'border-zinc-700/80 bg-zinc-950/70 text-zinc-400 hover:text-white hover:border-zinc-500'
+          }`}
+        >
+          <Bot className="h-3.5 w-3.5 text-cyan-400" />
+          AI Advisor
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowResourceFlow(!showResourceFlow)}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-md transition-all ${
+            showResourceFlow
+              ? 'border-cyan-400 bg-cyan-950/80 text-cyan-200 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
+              : 'border-zinc-700/80 bg-zinc-950/70 text-zinc-400 hover:text-white hover:border-zinc-500'
+          }`}
+        >
+          <GitBranch className="h-3.5 w-3.5 text-cyan-400" />
+          Conduit Flows
+        </button>
+      </div>
+
+      {/* Floating Resource Flow Diagram Modal */}
+      {showResourceFlow && (
+        <div className="fixed inset-x-4 top-16 bottom-16 z-50 mx-auto max-w-4xl overflow-y-auto rounded-2xl border border-cyan-500/50 bg-zinc-950/95 p-6 shadow-2xl backdrop-blur-xl animate-fade-in-up">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
+            <h3 className="text-sm font-black uppercase tracking-wider text-cyan-300">
+              Closed-Loop Resource Conduits
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowResourceFlow(false)}
+              className="text-zinc-400 hover:text-white text-sm"
+            >
+              ✕
+            </button>
+          </div>
+          <ResourceFlow />
+        </div>
+      )}
+
+      {/* Floating Advisor Chat Modal */}
+      {showAdvisor && (
+        <div className="fixed right-4 bottom-16 z-50 w-full max-w-md overflow-hidden rounded-2xl border border-cyan-500/50 bg-zinc-950/95 p-4 shadow-2xl backdrop-blur-xl animate-fade-in-up">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-3">
+            <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300 flex items-center gap-2">
+              <Bot className="h-4 w-4" /> Flight Director AI
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowAdvisor(false)}
+              className="text-zinc-400 hover:text-white text-xs"
+            >
+              ✕
+            </button>
+          </div>
+          <AdvisorChat />
+        </div>
+      )}
+
+      {/* Bottom Edge: Simulation Speed & Operational Controls */}
+      <TimeControls />
+
+      {/* Top-Level Phase Modal Overlays */}
+      {appPhase === 'title' && <TitleScreen />}
+      {appPhase === 'select' && (
+        <SelectionScreen
+          onScenario={updateScenario}
+          onMode={updateMode}
+          onRealSunMode={updateRealSunMode}
+          onSoundEnabled={updateSound}
+          soundEnabled={localSettingsState.settings.soundEnabled}
+          storageWarning={localSettingsState.warning}
+          sunDataStatus={sunDataStatus}
+        />
+      )}
+      {appPhase === 'tutorial' && <TutorialScreen onTutorialSeen={markTutorialSeen} />}
+      {appPhase === 'debrief' && <MissionReport success={false} />}
+      {appPhase === 'result' && <MissionReport success />}
+
+      {/* Input Error Banner */}
+      {inputError && appPhase !== 'design' && appPhase !== 'operate' && (
+        <div
+          role="alert"
+          className="fixed bottom-16 left-4 right-4 z-50 mx-auto max-w-lg rounded-xl border border-red-800 bg-red-950/90 p-3 text-xs text-red-200 shadow-2xl backdrop-blur-md animate-fade-in-up"
+        >
+          {inputError}
+        </div>
+      )}
     </div>
   );
 }
